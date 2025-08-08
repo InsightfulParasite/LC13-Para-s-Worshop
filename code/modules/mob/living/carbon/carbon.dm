@@ -1359,3 +1359,9 @@
 
 /mob/living/carbon/proc/getRawMaxSanity()
 	return initial(maxSanity)
+
+/mob/living/carbon/check_hit_limb_zone_name(hit_zone)
+	if(get_bodypart(hit_zone))
+		return hit_zone
+	// When a limb is missing the damage is actually passed to the chest
+	return BODY_ZONE_CHEST
