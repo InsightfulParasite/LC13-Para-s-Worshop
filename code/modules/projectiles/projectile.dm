@@ -1207,7 +1207,7 @@
  * - deviation: (Optional) How the trajectory should deviate from the target in degrees.
  *   - //Spread is FORCED!
  */
-/obj/projectile/proc/AimProjectile(atom/target, atom/source, list/modifiers = null, deviation = 0)
+/obj/projectile/proc/AimProjectile(atom/target, atom/source, list/modifiers = null, spread = 0)
 	if(!(isnull(modifiers) || islist(modifiers)))
 		stack_trace("WARNING: Projectile [type] fired with non-list modifiers, likely was passed click params. Modifiers were the following: [modifiers]")
 		modifiers = null
