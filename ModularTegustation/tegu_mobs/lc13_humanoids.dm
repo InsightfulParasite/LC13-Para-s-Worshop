@@ -744,7 +744,7 @@ GLOBAL_LIST_EMPTY(nuke_rats_players)
 	got_hit = TRUE
 	can_act = FALSE
 	say("Derealization...")
-	var/mutable_appearance/colored_overlay = mutable_appearance(icon, "small_stagger", F.layer + 0.1)
+	var/mutable_appearance/colored_overlay = mutable_appearance(icon, "small_stagger", layer + 0.1)
 	add_overlay(colored_overlay)
 	ChangeResistances(list(RED_DAMAGE = 0.8, WHITE_DAMAGE = 1.2, BLACK_DAMAGE = 2, PALE_DAMAGE = 2.6))
 	vulnerable = TRUE
@@ -760,7 +760,7 @@ GLOBAL_LIST_EMPTY(nuke_rats_players)
 	name ="flame bolt"
 	icon_state= "helios_fire"
 	damage = 15
-	speed = 8
+	speed = 1.4
 	damage_type = RED_DAMAGE
 	//projectile_piercing = PASSMOB
 	ricochets_max = 20
