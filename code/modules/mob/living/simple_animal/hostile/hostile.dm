@@ -30,6 +30,7 @@ GLOBAL_LIST_EMPTY(marked_players)
 	var/attack_cooldown = 0      //The time between attacks in deciseconds. If 0 at initialization then uses rapid_melee to calculate the initial value.
 	var/attack_is_on_cooldown = FALSE
 	var/old_rapid_melee = 0      //used for compatibility with old rapid_melee system to detect outside code changing the rapid_melee value and adjusts attack_cooldown accordingly
+	var/env_smash_cooldown = 0
 
 	var/ranged_message = "fires" //Fluff text for ranged mobs
 	var/ranged_cooldown = 0 //What the current cooldown on ranged attacks is, generally world.time + ranged_cooldown_time
@@ -245,7 +246,9 @@ GLOBAL_LIST_EMPTY(marked_players)
 			TryAttack()
 			if(QDELETED(src) || stat != CONSCIOUS)
 				return FALSE
-		if(!QDELETED(target) && !targets_from.Adjacent(target))
+		if(!QDELETED(target) && !targets_from.Adjacent(target) && world.time >= env_smash_cooldown)
+			//Stagger our beseiging with a value between 0 and npc wait time. Which is typically 2 seconds.
+			env_smash_cooldown = world.time + (SSnpcpool.wait) + (rand(0,4)*10)
 			DestroyPathToTarget()
 		if(!MoveToTarget(possible_targets))     //if we lose our target
 			if(AIShouldSleep(possible_targets))	// we try to acquire a new one
