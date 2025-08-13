@@ -40,7 +40,7 @@
 
 /obj/projectile/ego_bullet/ego_knade
 	damage = 15
-	speed = 0.8
+	speed = 1.8
 	icon_state = "kcorp_nade"
 
 /obj/projectile/ego_bullet/ego_knade/on_hit(atom/target, blocked = FALSE)
@@ -57,7 +57,7 @@
 	icon_state = "flamethrower_fire"
 	damage = 1
 	damage_type = RED_DAMAGE
-	speed = 2
+	speed = 0.5
 	range = 5
 	hitsound_wall = 'sound/weapons/tap.ogg'
 	impact_effect_type = /obj/effect/temp_visual/impact_effect/red_laser

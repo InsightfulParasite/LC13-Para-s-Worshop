@@ -151,7 +151,7 @@
 	inhand_x_dimension = 96
 	inhand_y_dimension = 96
 	force = 140
-	attack_speed = 1.8
+	attack_speed = 0.8
 	damtype = BLACK_DAMAGE
 	hitsound = 'sound/abnormalities/apocalypse/slam.ogg'
 	attack_verb_continuous = list("crushes", "devastates")
@@ -251,7 +251,7 @@
 	inhand_x_dimension = 64
 	inhand_y_dimension = 64
 	force = 160
-	attack_speed = 1.6
+	attack_speed = 0.6
 	damtype = RED_DAMAGE
 	knockback = KNOCKBACK_HEAVY
 	attack_verb_continuous = list("bashes", "clubs")
@@ -271,7 +271,7 @@
 	icon_state = "1"
 	icon = 'icons/obj/magic.dmi'
 	force = 230
-	attack_speed = 0.4
+	attack_speed = 1.4
 	damtype = PALE_DAMAGE
 	attack_verb_continuous = list("cleaves", "dismantles")
 	attack_verb_simple = list("cleave", "dismantle")
@@ -359,7 +359,7 @@
 	inhand_y_dimension = 96
 	force = 70
 	reach = 2		//Has 2 Square Reach.
-	attack_speed = 2.0 // really slow
+	attack_speed = 0.2 // really slow
 	damtype = BLACK_DAMAGE
 	attack_verb_continuous = list("pierces", "skews")
 	attack_verb_simple = list("pierce", "skew")

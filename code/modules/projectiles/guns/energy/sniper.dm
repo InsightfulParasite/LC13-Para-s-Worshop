@@ -36,7 +36,7 @@
 
 /obj/projectile/beam/laser/sniper
 	damage = 80
-	speed = 0.4
+	speed = 4
 	name = "energy bullet"
 	icon = 'ModularTegustation/Teguicons/energy_sniper.dmi'
 	icon_state = "blue_bullet"
