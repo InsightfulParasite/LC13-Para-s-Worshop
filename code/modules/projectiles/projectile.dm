@@ -356,7 +356,6 @@
  * * Returns [BULLET_ACT_FORCE_PIERCE] to have the projectile keep going instead of "hitting", as if we were not hit at all.
  */
 /obj/projectile/proc/on_hit(atom/target, blocked = 0, pierce_hit)
-	SHOULD_CALL_PARENT(TRUE)
 
 	// i know that this is probably more with wands and gun mods in mind, but it's a bit silly that the projectile on_hit signal doesn't ping the projectile itself.
 	// maybe we care what the projectile thinks! See about combining these via args some time when it's not 5AM
