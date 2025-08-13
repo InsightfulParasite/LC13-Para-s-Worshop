@@ -61,7 +61,7 @@
 	name = "hellfire laser"
 	wound_bonus = 0
 	damage = 25
-	speed = 1.6 // higher power = faster, that's how light works right
+	speed = 0.6 / 0.8 // higher power = faster, that's how light works right
 
 /obj/projectile/beam/laser/hellfire/Initialize()
 	. = ..()
