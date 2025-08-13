@@ -614,7 +614,7 @@
 	damage = 15
 	damage_type = FIRE
 	nodamage = FALSE
-	speed = 3.5
+	speed = 0.5
 
 	var/zap_power = 20000
 	var/zap_range = 15

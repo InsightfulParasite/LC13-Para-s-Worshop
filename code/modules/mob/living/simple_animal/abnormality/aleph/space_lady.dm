@@ -264,7 +264,7 @@
 	desc = "A mini white hole."
 	nodamage = TRUE
 	hitsound = "sound/effects/footstep/slime1.ogg"
-	speed = 3
+	speed = 1.7
 
 /obj/projectile/white_hole/on_hit(target)
 	goonchem_vortex(get_turf(src), 1, 5)
@@ -283,7 +283,7 @@
 	nodamage = TRUE
 	hitsound = "sound/effects/footstep/slime1.ogg"
 	color = COLOR_PURPLE
-	speed = 3
+	speed = 1.7
 
 /obj/projectile/black_hole/on_hit(target)
 	goonchem_vortex(get_turf(src), 0, 5)
