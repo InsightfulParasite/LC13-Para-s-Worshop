@@ -264,7 +264,7 @@
 	desc = "A mini white hole."
 	nodamage = TRUE
 	hitsound = "sound/effects/footstep/slime1.ogg"
-	speed = 3
+	speed = 1.7
 
 /obj/projectile/white_hole/on_hit(target)
 	goonchem_vortex(get_turf(src), 1, 5)
@@ -283,7 +283,7 @@
 	nodamage = TRUE
 	hitsound = "sound/effects/footstep/slime1.ogg"
 	color = COLOR_PURPLE
-	speed = 3
+	speed = 1.7
 
 /obj/projectile/black_hole/on_hit(target)
 	goonchem_vortex(get_turf(src), 0, 5)
@@ -299,7 +299,7 @@
 	icon_state = "whitelaser"
 	desc = "A beam of white light."
 	hitsound = "sound/effects/footstep/slime1.ogg"
-	speed = 5		//very slow bullets
+	speed = 0.5		//very slow bullets
 	damage = 40		//She fires a lot of them
 	damage_type = WHITE_DAMAGE
 	spread = 360	//Fires in a 360 Degree radius

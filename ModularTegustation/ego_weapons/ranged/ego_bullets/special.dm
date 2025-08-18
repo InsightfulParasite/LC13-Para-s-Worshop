@@ -1,6 +1,5 @@
 /obj/projectile/ego_bullet/ego_soda/rifle
 	damage = 17
-	speed = 0.25
 
 /obj/projectile/ego_bullet/shrimp_red
 	name = "9mm soda bullet R"
@@ -12,7 +11,7 @@
 /obj/projectile/ego_bullet/shrimp_white
 	name = "9mm soda bullet W"
 	damage = 70
-	speed = 0.1
+	speed = 1.1
 	damage_type = WHITE_DAMAGE
 	projectile_piercing = PASSMOB
 
@@ -41,7 +40,7 @@
 
 /obj/projectile/ego_bullet/ego_knade
 	damage = 15
-	speed = 1
+	speed = 1.8
 	icon_state = "kcorp_nade"
 
 /obj/projectile/ego_bullet/ego_knade/on_hit(atom/target, blocked = FALSE)
@@ -58,7 +57,7 @@
 	icon_state = "flamethrower_fire"
 	damage = 1
 	damage_type = RED_DAMAGE
-	speed = 2
+	speed = 0.5
 	range = 5
 	hitsound_wall = 'sound/weapons/tap.ogg'
 	impact_effect_type = /obj/effect/temp_visual/impact_effect/red_laser
