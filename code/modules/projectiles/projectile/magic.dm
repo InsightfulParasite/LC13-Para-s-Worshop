@@ -680,7 +680,7 @@
 	damage = 350
 	damage_type = BLACK_DAMAGE
 	armour_penetration = 0
-	speed = 0.5 // Slow
+	speed = 0.66 // Slow
 	damage_falloff_tile = -5 // Loses a bit of damage so you don't get jumpscared out of nowhere
 	white_healing = FALSE
 	nodamage = FALSE
