@@ -59,9 +59,25 @@
 		buffed = (buffed + 1)
 		if(buffed >= 10)
 			PustuleChurn()
+		return
 	else if(!client && health < 500)
 		retreat_distance = 10
-	return ..()
+	. = ..()
+	if(.)
+		var/dir_to_target = get_dir(get_turf(src), get_turf(attacked_target))
+		animate(src, pixel_y = (base_pixel_y + 18), time = 2)
+		addtimer(CALLBACK(src, PROC_REF(AnimateBack)), 2)
+		for(var/i = 1 to 2)
+			var/turf/T = get_step(get_turf(src), dir_to_target)
+			if(T.density)
+				return
+			if(locate(/obj/structure/window) in T.contents)
+				return
+			for(var/obj/machinery/door/D in T.contents)
+				if(D.density)
+					return
+			forceMove(T)
+			SLEEP_CHECK_DEATH(2)
 
 /mob/living/simple_animal/hostile/morsel/Login()
 	. = ..()
@@ -86,24 +102,6 @@
 	if(pulledby)
 		return
 	return ..()
-
-/mob/living/simple_animal/hostile/morsel/AttackingTarget(atom/attacked_target)
-	. = ..()
-	if(.)
-		var/dir_to_target = get_dir(get_turf(src), get_turf(attacked_target))
-		animate(src, pixel_y = (base_pixel_y + 18), time = 2)
-		addtimer(CALLBACK(src, PROC_REF(AnimateBack)), 2)
-		for(var/i = 1 to 2)
-			var/turf/T = get_step(get_turf(src), dir_to_target)
-			if(T.density)
-				return
-			if(locate(/obj/structure/window) in T.contents)
-				return
-			for(var/obj/machinery/door/D in T.contents)
-				if(D.density)
-					return
-			forceMove(T)
-			SLEEP_CHECK_DEATH(2)
 
 /mob/living/simple_animal/hostile/morsel/attackby(obj/item/O, mob/user, params)
 	if(!is_type_in_list(O, wanted_objects))
