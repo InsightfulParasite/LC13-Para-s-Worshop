@@ -64,7 +64,10 @@
 
 /mob/living/simple_animal/hostile/ordeal/steel_dusk/handle_automated_action()
 	. = ..()
-	if(command_cooldown < world.time && target && can_act && stat != DEAD)
+	if(!target || !can_act || stat == DEAD)
+		return
+
+	if(command_cooldown < world.time)
 		switch(last_command)
 			if(1)
 				Command(2) //always buff defense at start of battle
@@ -92,6 +95,7 @@
 
 /mob/living/simple_animal/hostile/ordeal/steel_dusk/OpenFire()
 	if(can_act && ranged_cooldown <= world.time)
+		StratagicMovement()
 		ManagerScreech()
 		ranged_cooldown = world.time + ranged_cooldown_time
 
@@ -156,3 +160,46 @@
 	for(var/mob/living/L in oview(10, src))
 		if(!faction_check_mob(L))
 			L.deal_damage(60, WHITE_DAMAGE, src, attack_type = (ATTACK_TYPE_SPECIAL))
+
+//Scans the creatures in the room before commanding them
+/mob/living/simple_animal/hostile/ordeal/steel_dusk/proc/StratagicMovement()
+	var/list/melee_en = list()
+	var/list/ranged_en = list()
+	var/list/allies = list()
+	var/success = TRUE
+	can_act = FALSE
+	for(var/mob/living/L in oview(8, src))
+		if(QDELETED(src) || stat == DEAD)
+			break
+		//Thinking delay
+		if(!do_after(src, 1, target = src))
+			can_act = TRUE
+			return
+		if(L.stat == DEAD)
+			continue
+		if(!CanAttack(L))
+			allies += L
+			continue
+		if(iscarbon(L))
+			var/mob/living/carbon/C = L
+			var/obj/item/I = C.get_active_held_item()
+			if(isgun(I))
+				ranged_en += C
+			else
+				melee_en += C
+		else
+			melee_en += L
+
+	if(success && length(allies) >= 4)
+		for(var/mob/living/simple_animal/hostile/ordeal/steel_dawn/dude in allies)
+			if(length(ranged_en) && istype(dude, /mob/living/simple_animal/hostile/ordeal/steel_dawn/steel_noon))
+				dude.LoseAggro()
+				dude.GiveTarget(length(ranged_en) > 1 ? pop(ranged_en) : pick(ranged_en))
+			if(dude.type == /mob/living/simple_animal/hostile/ordeal/steel_dawn)
+				dude.LoseAggro()
+				//bandaid  solution to making them ignore people long enough
+				dude.toggle_ai(AI_IDLE)
+				dude.Goto(src, move_to_delay - 2, 1)
+
+		say("Corporals, chase the hares. The rest of you cover me.")
+	can_act = TRUE
