@@ -66,12 +66,22 @@
 	var/grow_time = 5 MINUTES
 	//Max Hunger
 	var/max_hunger = 100
+	//Chances for traits to be altered
+	var/mutation_chance = 25
 	//Form juviniles metamorphise into
 	var/adult_form
 	//Food flags that a creature hates.
 	var/foodhatetypes = TOXIC | CLOTH
-	//Tags of thsi creatures offspring
+	//Tags of this creatures offspring
 	var/list/offspring_tags = list()
+	//This creatures inherited traits
+	var/list/traits = list()
+	//Possible traits this creature can get
+	var/list/potential_traits = list(
+		"Deformed" = 5,
+		"Strong" = 25,
+		"Soft" = 10,
+		"Regenerative" = 5)
 
 /*--------*\
 |Core Procs|
@@ -93,6 +103,9 @@
 
 	if(length(offspring_tags))
 		. += span_notice("This creature has had [length(offspring_tags)] offspring.")
+	var/examine_text = "This creature is:"
+	for(var/i in traits)
+		examine_text += " [i],"
 
 
 /mob/living/simple_animal/hostile/hog/attackby(obj/item/O, mob/user, params)
@@ -124,7 +137,10 @@
 			adjust_nutrition(-1)
 		else
 			if(max_hunger > -1)
-				adjustHealth(1)
+				var/regen_amt = 1
+				if("Regenerative" in genes)
+					regen_amt = 3
+				adjustHealth(regen_amt)
 
 	if(adult_form)
 		var/lifetime = world.time - toi
@@ -174,6 +190,9 @@
 		fertility--
 		var/mob/living/L = .
 		offspring_tags += L.tag
+		if(istype(L, /mob/living/simple_animal/hostile/hog))
+			var/mob/living/simple_animal/hostile/hog/H
+			H.InheritTraits(genes, potential_traits, mutation_chance)
 
 /*---------\
 |Targetting|
@@ -221,6 +240,23 @@
 /*-----------\
 |Unique Procs|
 \-----------*/
+/mob/living/simple_animal/hostile/hog/proc/InheritTraits(list/new_genes,list/potential,mut_chance = 0)
+	genes = new_genes.Copy()
+	potential_traits = potential.Copy()
+	if(prob(mut_chance))
+		for(var/i in potential_traits)
+			potential_traits[i] += prob(50) ? 1 : -1
+			if(i in genes)
+				if(prob(5))
+					genes -= i
+				continue
+			var/apply_chance = potential_traits[i]
+			if(prob(apply_chance))
+				genes += i
+
+	if("Strong" in genes)
+		melee_damage_lower += 2
+
 /mob/living/simple_animal/hostile/hog/proc/growUp()
 	if(mob_size == MOB_SIZE_TINY)
 		mob_size = MOB_SIZE_SMALL
@@ -237,6 +273,9 @@
 	L.Stun(20, ignore_canstun = TRUE)
 	L.update_icon_state()
 	visible_message(span_notice("[src] grows up into [L]."))
+	if(istype(L, /mob/living/simple_animal/hostile/hog))
+		var/mob/living/simple_animal/hostile/hog/H = L
+		H.InheritTraits(genes,potential_traits)
 	qdel(src)
 
 /*---\
