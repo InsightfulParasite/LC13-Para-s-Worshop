@@ -27,11 +27,13 @@
 		)
 
 /mob/living/simple_animal/hostile/gribble/bibble/proc/Test1()
-	return length(range(7,get_turf(src)))
+	return length(view(7,get_turf(src)))
 
 /mob/living/simple_animal/hostile/gribble/bibble/proc/Test2()
 	return length(block(x - 7, y - 7,z,x + 7, y + 7))
 
+/mob/living/simple_animal/hostile/gribble/bibble/proc/Test3()
+	return length(Test2() & Test1())
 
 /mob/living/simple_animal/hostile/gribble/bibble/handle_automated_action()
 	automated_cycle++
@@ -413,17 +415,22 @@
 				dir_list[T] = new_dir
 				if(!(T in openf))
 					openf += T
+				if(openf[T] >= 1000)
+					continue
 				openf[T] = AppraiseTurf(T,start,end)
 
 		if(focus_turf == end)
 			break
 
-		openf -= focus_turf
 		closed_turfs += focus_turf
-		new /obj/effect/temp_visual/cult/sparks(focus_turf)
 
 		if(length(openf))
-			focus_turf = ReturnLowestValue(openf)
+			var/good_options = openf - closed_turfs
+			focus_turf = ReturnLowestValue(good_options)
+		for(var/turf/E in openf)
+			var/obj/effect/temp_visual/sparkles/S = new(E)
+			S.color = "green"
+
 
 	//Okay well if we havent gotten to our destination consider the last turf the dest
 	var/list/temp_list_two = ReturnAdjacentTurfs(focus_turf)
@@ -436,7 +443,6 @@
 			dir_list[T] = new_dir_two
 
 	walk_path = FormatDirections(dir_list, start,focus_turf)
-	var/turf/walkin_ere = get_turf(src)
 	for(var/i in walk_path)
 		var/our_tag = "[walkin_ere.x],[walkin_ere.y]"
 		if(!(our_tag in walk_path))
@@ -607,7 +613,9 @@
 	var/S = 0
 	var/E = 0
 	var/dark_vision = see_in_dark + (target ? 5 : 0)
-	for(var/turf/T in block(targets_from.x - max_range, targets_from.y - max_range,targets_from.z,targets_from.x + max_range, targets_from.y + max_range,targets_from.z))
+	var/list/raw_turfs = block(targets_from.x - max_range, targets_from.y - max_range,targets_from.z,targets_from.x + max_range, targets_from.y + max_range,targets_from.z)
+	var/list/sight = raw_turfs & view(max_range,get_turf(targets_from))
+	for(var/turf/T in sight)
 		if(isclosedturf(T) || !can_see(targets_from, T))
 			S++
 			continue
