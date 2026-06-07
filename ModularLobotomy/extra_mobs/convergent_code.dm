@@ -224,7 +224,6 @@
 	for(var/turf in L)
 		new effectpath(UnpackIntoTurf(turf))
 
-
 //Walk ourselves backwards
 //Is the same as FormPath but simplified
 /mob/living/simple_animal/hostile/gribble/bibble/proc/Backtrack(start_tag,end_tag,list/tredded_path)
@@ -344,12 +343,13 @@
 /mob/living/simple_animal/hostile/gribble/ribble
 	name = "ribble"
 	color = "green"
-	var/walk_timer
+	var/walk_timer = null
 	var/list/walk_path = list()
 
 /mob/living/simple_animal/hostile/gribble/ribble/Destroy()
 	if(walk_timer)
 		deltimer(walk_timer)
+		walk_timer = null
 	return ..()
 
 /mob/living/simple_animal/hostile/gribble/ribble/Goto(target, delay, minimum_distance)
@@ -366,26 +366,32 @@
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/WalkPing(timer_called = FALSE)
 	if(QDELETED(src) || stat == DEAD)
+		walk(src,0)
 		return
 	if(client)
 		return
 	if(!isturf(loc))
 		return
-	if(TIMER_COOLDOWN_CHECK(src,walk_timer) && !timer_called)
-		return
+	if(walk_timer && !timer_called)
+		if(TIMER_COOLDOWN_CHECK(src,walk_timer))
+			return
 	walk(src,0)
 
 	say("WalkPing[timer_called]")
+	//Give me our xy tag.
 	var/our_tag = "[x],[y]"
+	var/timer_cooldown = max(1, move_to_delay)
 	if(our_tag in walk_path)
 		if(timer_called)
 			var/walk_tag = walk_path[our_tag]
 			if(walk_timer)
 				deltimer(walk_timer)
+				walk_timer = null
 			if(walk_tag == "dest")
 				return
-			step(src,walk_tag)
-		walk_timer = addtimer(CALLBACK(src, PROC_REF(WalkPing), TRUE), move_to_delay, TIMER_STOPPABLE)
+			step(src,walk_path[our_tag])
+		if(!walk_timer)
+			walk_timer = addtimer(CALLBACK(src, PROC_REF(WalkPing), TRUE, timer_cooldown, TIMER_STOPPABLE))
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/PathStep(atom/trg)
 	var/turf/trg_turf = get_turf(trg)
@@ -401,9 +407,9 @@
 	var/list/openf = list()
 	var/list/dir_list = list()
 	var/list/closed_turfs = list()
-	for(var/cycle = 1 to 10)
+	for(var/cycle = 1 to (10 + move_to_delay))
 		if(!focus_turf)
-			stack_trace("FormPath:focus_turfmissing:cycle[cycle]")
+			stack_trace("FormPath:focus_turfmissing:cycle[cycle]:[type]")
 			return
 		var/list/temp_list = ReturnAdjacentTurfs(focus_turf)
 		for(var/turf/T in temp_list)
@@ -443,10 +449,11 @@
 			dir_list[T] = new_dir_two
 
 	walk_path = FormatDirections(dir_list, start,focus_turf)
-	for(var/i in walk_path)
+	var/turf/walkin_ere = get_turf(src)
+	for(var/turf/i in walk_path)
 		var/our_tag = "[walkin_ere.x],[walkin_ere.y]"
 		if(!(our_tag in walk_path))
-			stack_trace("FormPath:selfmissing")
+			stack_trace("FormPath:selfmissing:[type]")
 			break
 		var/obj/effect/temp_visual/dir_setting/curse/hand/s = new(walkin_ere,walk_path[our_tag])
 		walkin_ere = get_step(walkin_ere, walk_path[our_tag])
@@ -455,11 +462,11 @@
 /mob/living/simple_animal/hostile/gribble/ribble/proc/FormatDirections(list/dir_list = list(), turf/start, turf/end)
 	. = list()
 	if(!length(dir_list))
-		stack_trace("FormatDirections:NoDirList")
+		stack_trace("FormatDirections:NoDirList:[type]")
 		return
 
 	if(!start || !end)
-		stack_trace("FormatDirections:nostartorend")
+		stack_trace("FormatDirections:nostartorend:[type]")
 		return
 
 	for(var/turf/i in dir_list)
@@ -470,13 +477,13 @@
 
 	var/list/return_list = list()
 	var/turf/focus_turf = start
-	for(var/cycle = 1 to 10)
+	for(var/cycle = 1 to (10 + move_to_delay))
 		if(!(focus_turf in dir_list))
 			return return_list
 		var/tag_turf = "[focus_turf.x],[focus_turf.y]"
 		var/next_dir = dir_list[focus_turf]
 		if(!next_dir)
-			stack_trace("FormatDirections:[tag_turf]:cycle[cycle]")
+			stack_trace("FormatDirections:[tag_turf]:cycle[cycle]:[type]")
 			return
 		return_list += tag_turf
 		return_list[tag_turf] = next_dir
@@ -485,10 +492,10 @@
 			break
 		var/turf/new_turf = get_step(focus_turf, next_dir)
 		if(tag_turf in walk_path)
-			stack_trace("FormatDirections:retracing")
+			stack_trace("FormatDirections:retracing:[type]")
 			return return_list
 		if(!isturf(new_turf))
-			stack_trace("FormatDirections:new_turf_fail")
+			stack_trace("FormatDirections:new_turf_fail:[type]")
 			return list()
 		focus_turf = new_turf
 
@@ -613,7 +620,9 @@
 	var/S = 0
 	var/E = 0
 	var/dark_vision = see_in_dark + (target ? 5 : 0)
+	//Turfs between range cords
 	var/list/raw_turfs = block(targets_from.x - max_range, targets_from.y - max_range,targets_from.z,targets_from.x + max_range, targets_from.y + max_range,targets_from.z)
+	//Any turf that isnt in view remove.
 	var/list/sight = raw_turfs & view(max_range,get_turf(targets_from))
 	for(var/turf/T in sight)
 		if(isclosedturf(T) || !can_see(targets_from, T))
