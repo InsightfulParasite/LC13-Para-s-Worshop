@@ -6,11 +6,11 @@
 	icon_state = "tegu"
 	icon_living = "tegu"
 	see_in_dark = 4
-
+/*
 /mob/living/simple_animal/hostile/gribble/FindTarget(list/possible_targets, HasTargetsList = 0)//Step 2, filter down possible targets to things we actually care about
 	. = ..()
 	say("FindTarget:possibleTargets:_[length(possible_targets)]_,Result:[. ? "[.]" : "None"]")
-
+*/
 
 
 /mob/living/simple_animal/hostile/gribble/bibble
@@ -347,9 +347,9 @@
 	var/list/walk_path = list()
 
 /mob/living/simple_animal/hostile/gribble/ribble/Destroy()
-	if(walk_timer)
+	if(TIMER_COOLDOWN_CHECK(src,walk_timer))
 		deltimer(walk_timer)
-		walk_timer = null
+		return TRUE
 	return ..()
 
 /mob/living/simple_animal/hostile/gribble/ribble/Goto(target, delay, minimum_distance)
@@ -364,6 +364,7 @@
 		return
 	return ..()
 
+//The actual movement that is called over and over.
 /mob/living/simple_animal/hostile/gribble/ribble/proc/WalkPing(timer_called = FALSE)
 	if(QDELETED(src) || stat == DEAD)
 		walk(src,0)
@@ -372,30 +373,34 @@
 		return
 	if(!isturf(loc))
 		return
-	if(walk_timer && !timer_called)
-		if(TIMER_COOLDOWN_CHECK(src,walk_timer))
-			return
-	walk(src,0)
+	var/timer_exists = FALSE
+	if(TIMER_COOLDOWN_CHECK(src,walk_timer))
+		timer_exists = TRUE
+	if(timer_exists && !timer_called)
+		return
 
 	say("WalkPing[timer_called]")
 	//Give me our xy tag.
 	var/our_tag = "[x],[y]"
-	var/timer_cooldown = max(1, move_to_delay)
+	var/timer_cooldown = max(1, move_to_delay + (rand(0,10) * 0.1))
 	if(our_tag in walk_path)
 		if(timer_called)
 			var/walk_tag = walk_path[our_tag]
-			if(walk_timer)
+			if(timer_exists)
 				deltimer(walk_timer)
 				walk_timer = null
+				timer_exists = FALSE
 			if(walk_tag == "dest")
+				if(target)
+					Goto(target, move_to_delay)
 				return
 			step(src,walk_path[our_tag])
-		if(!walk_timer)
-			walk_timer = addtimer(CALLBACK(src, PROC_REF(WalkPing), TRUE, timer_cooldown, TIMER_STOPPABLE))
+		if(!timer_exists)
+			walk_timer = addtimer(CALLBACK(src, PROC_REF(WalkPing), TRUE), timer_cooldown, TIMER_STOPPABLE)
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/PathStep(atom/trg)
 	var/turf/trg_turf = get_turf(trg)
-	if(!trg)
+	if(!trg || !trg_turf)
 		return
 	var/turf/our_turf = get_turf(src)
 	FormPath(our_turf,trg_turf)
@@ -404,10 +409,11 @@
 /mob/living/simple_animal/hostile/gribble/ribble/proc/FormPath(turf/start,turf/end)
 	walk_path = list()
 	var/turf/focus_turf = start
+	var/max_cycles = 10 + move_to_delay
 	var/list/openf = list()
 	var/list/dir_list = list()
 	var/list/closed_turfs = list()
-	for(var/cycle = 1 to (10 + move_to_delay))
+	for(var/cycle = 1 to max_cycles)
 		if(!focus_turf)
 			stack_trace("FormPath:focus_turfmissing:cycle[cycle]:[type]")
 			return
@@ -477,7 +483,7 @@
 
 	var/list/return_list = list()
 	var/turf/focus_turf = start
-	for(var/cycle = 1 to (10 + move_to_delay))
+	for(var/cycle = 1 to (15 + move_to_delay))
 		if(!(focus_turf in dir_list))
 			return return_list
 		var/tag_turf = "[focus_turf.x],[focus_turf.y]"
@@ -545,8 +551,8 @@
 		if(S.density)
 			if(S.resistance_flags & INDESTRUCTIBLE)
 				return 10000
-			. += 5
-			total_extra += 5
+			. += 8
+			total_extra += 8
 			break
 
 	for(var/obj/machinery/M in O)
@@ -557,23 +563,26 @@
 			if(!istype(M,/obj/machinery/door))
 				if(M.resistance_flags & INDESTRUCTIBLE)
 					return 10000
-				. += 10
-				total_extra += 10
+				. += 5
+				total_extra += 5
 				break
 			. += 2
 			total_extra += 2
 
-	if(total_extra > 50)
-		return
-
 	for(var/obj/effect/turf_fire/F in O)
 		total_check++
-		if(total_check >= 5)
+		if(total_extra > 50 || total_check >= 5)
 			break
 		if(QDELETED(F))
-			continue
-		. += 100 * damage_coeff[FIRE]
+			continue\
+		var/fire_resist = 1
+		if(FIRE in damage_coeff)
+			fire_resist = damage_coeff[FIRE]
+		. += 100 * fire_resist
 		break
+
+	if(total_extra > 50)
+		return
 
 	for(var/mob/living/L in O)
 		total_check++
@@ -607,11 +616,10 @@
 
 /mob/living/simple_animal/hostile/gribble/nibble/CanAttack(atom/the_target)
 	. = ..()
-	if(.)
-		if(isliving(the_target))
-			var/mob/living/L = the_target
-			if(L.tag == ignore_tag && get_dist(src,L) > 2)
-				return FALSE
+	if(. && isliving(the_target))
+		var/mob/living/L = the_target
+		if(L.tag == ignore_tag && get_dist(src,L) > 2)
+			return FALSE
 
 /mob/living/simple_animal/hostile/gribble/nibble/ListTargets(max_range = vision_range) //Step 1, find out what we can see
 	. = list()
@@ -620,10 +628,7 @@
 	var/S = 0
 	var/E = 0
 	var/dark_vision = see_in_dark + (target ? 5 : 0)
-	//Turfs between range cords
-	var/list/raw_turfs = block(targets_from.x - max_range, targets_from.y - max_range,targets_from.z,targets_from.x + max_range, targets_from.y + max_range,targets_from.z)
-	//Any turf that isnt in view remove.
-	var/list/sight = raw_turfs & view(max_range,get_turf(targets_from))
+	var/list/sight = view(max_range,get_turf(targets_from))
 	for(var/turf/T in sight)
 		if(isclosedturf(T) || !can_see(targets_from, T))
 			S++
