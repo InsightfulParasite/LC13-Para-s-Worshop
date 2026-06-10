@@ -346,6 +346,13 @@
 	var/walk_timer = null
 	var/list/walk_path = list()
 
+/mob/living/simple_animal/hostile/gribble/ribble/proc/FlickOnAtom(atom/A, icon_file, icon_file_state, flicktime = 10)
+	var/image/effect_flick = image(icon_file,A,icon_file_state,CLOSED_FIREDOOR_LAYER)
+	effect_flick.plane = GAME_PLANE
+	effect_flick.appearance_flags = APPEARANCE_UI_IGNORE_ALPHA
+	flick_overlay_view(effect_flick, A, flicktime)
+	return effect_flick
+
 /mob/living/simple_animal/hostile/gribble/ribble/Destroy()
 	if(TIMER_COOLDOWN_CHECK(src,walk_timer))
 		deltimer(walk_timer)
@@ -376,20 +383,18 @@
 	var/timer_exists = FALSE
 	if(TIMER_COOLDOWN_CHECK(src,walk_timer))
 		timer_exists = TRUE
+
 	if(timer_exists && !timer_called)
 		return
 
 	say("WalkPing[timer_called]")
 	//Give me our xy tag.
 	var/our_tag = "[x],[y]"
-	var/timer_cooldown = max(1, move_to_delay + (rand(0,10) * 0.1))
+	var/timer_cooldown = max(1, move_to_delay)
 	if(our_tag in walk_path)
 		if(timer_called)
 			var/walk_tag = walk_path[our_tag]
-			if(timer_exists)
-				deltimer(walk_timer)
-				walk_timer = null
-				timer_exists = FALSE
+
 			if(walk_tag == "dest")
 				if(target)
 					Goto(target, move_to_delay)
@@ -440,8 +445,7 @@
 			var/good_options = openf - closed_turfs
 			focus_turf = ReturnLowestValue(good_options)
 		for(var/turf/E in openf)
-			var/obj/effect/temp_visual/sparkles/S = new(E)
-			S.color = "green"
+			FlickOnAtom(E,'icons/effects/cult_effects.dmi',"bloodsparkles",5)
 
 
 	//Okay well if we havent gotten to our destination consider the last turf the dest
