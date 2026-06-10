@@ -342,7 +342,8 @@
 
 /mob/living/simple_animal/hostile/gribble/ribble
 	name = "ribble"
-	color = "green"
+	color = "purple"
+	var/attempts_allowance = 10
 	var/walk_timer = null
 	var/list/walk_path = list()
 
@@ -366,42 +367,45 @@
 		approaching_target = FALSE
 
 	var/dist = get_dist(src,target)
-	if(dist > 1 && target)
+	if(dist > 1 && dist < 16 && target)
 		PathStep(target)
 		return
+	if(TIMER_COOLDOWN_CHECK(src,walk_timer))
+		deltimer(walk_timer)
+		walk_timer = null
 	return ..()
 
 //The actual movement that is called over and over.
-/mob/living/simple_animal/hostile/gribble/ribble/proc/WalkPing(timer_called = FALSE)
-	if(QDELETED(src) || stat == DEAD)
+/mob/living/simple_animal/hostile/gribble/ribble/proc/WalkPing(timer_called = 0)
+	if(QDELETED(src))
+		return
+	if(stat == DEAD)
 		walk(src,0)
 		return
 	if(client)
 		return
 	if(!isturf(loc))
 		return
-	var/timer_exists = FALSE
-	if(TIMER_COOLDOWN_CHECK(src,walk_timer))
-		timer_exists = TRUE
-
-	if(timer_exists && !timer_called)
-		return
 
 	say("WalkPing[timer_called]")
 	//Give me our xy tag.
 	var/our_tag = "[x],[y]"
+	var/turf/steppers = get_step(src, walk_path[our_tag])
 	var/timer_cooldown = max(1, move_to_delay)
 	if(our_tag in walk_path)
-		if(timer_called)
-			var/walk_tag = walk_path[our_tag]
+		var/walk_tag = walk_path[our_tag]
 
-			if(walk_tag == "dest")
-				if(target)
-					Goto(target, move_to_delay)
-				return
-			step(src,walk_path[our_tag])
-		if(!timer_exists)
-			walk_timer = addtimer(CALLBACK(src, PROC_REF(WalkPing), TRUE), timer_cooldown, TIMER_STOPPABLE)
+		if(walk_tag == "dest")
+			if(target)
+				Goto(target, move_to_delay)
+			return
+		src.Move(steppers, walk_path[our_tag])
+		if(timer_called < 4)
+			walk_timer = addtimer(CALLBACK(src, PROC_REF(WalkPing), timer_called + 1), timer_cooldown, TIMER_STOPPABLE)
+			return
+		deltimer(walk_timer)
+		walk_timer = null
+		return
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/PathStep(atom/trg)
 	var/turf/trg_turf = get_turf(trg)
@@ -409,12 +413,13 @@
 		return
 	var/turf/our_turf = get_turf(src)
 	FormPath(our_turf,trg_turf)
-	WalkPing(FALSE)
+	if(!walk_timer && length(walk_path))
+		WalkPing(0)
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/FormPath(turf/start,turf/end)
 	walk_path = list()
 	var/turf/focus_turf = start
-	var/max_cycles = 10 + move_to_delay
+	var/max_cycles = attempts_allowance + move_to_delay
 	var/list/openf = list()
 	var/list/dir_list = list()
 	var/list/closed_turfs = list()
@@ -515,8 +520,16 @@
 	switch(num)
 		if(NORTH)
 			return SOUTH
+		if(NORTHWEST)
+			return SOUTHEAST
+		if(NORTHEAST)
+			return SOUTHWEST
 		if(SOUTH)
 			return NORTH
+		if(SOUTHEAST)
+			return NORTHWEST
+		if(SOUTHWEST)
+			return NORTHEAST
 		if(EAST)
 			return WEST
 		if(WEST)
@@ -578,7 +591,7 @@
 		if(total_extra > 50 || total_check >= 5)
 			break
 		if(QDELETED(F))
-			continue\
+			continue
 		var/fire_resist = 1
 		if(FIRE in damage_coeff)
 			fire_resist = damage_coeff[FIRE]
@@ -602,8 +615,7 @@
 	var/fx = focus_turf.x
 	var/fy = focus_turf.y
 	var/fz = focus_turf.z
-	return_list += block(fx - 1,fy,fz,fx + 1,fy,fz) - focus_turf
-	return_list += block(fx,fy -1 ,fz,fx,fy + 1,fz) - focus_turf
+	return_list += block(fx -1,fy -1,fz,fx +1,fy +1,fz) - focus_turf
 	return return_list
 
 //---------------------------------------------------
