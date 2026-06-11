@@ -345,6 +345,7 @@
 	color = "purple"
 	var/attempts_allowance = 10
 	var/walk_timer = null
+	var/thinking = FALSE
 	var/list/walk_path = list()
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/FlickOnAtom(atom/A, icon_file, icon_file_state, flicktime = 10)
@@ -409,11 +410,11 @@
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/PathStep(atom/trg)
 	var/turf/trg_turf = get_turf(trg)
-	if(!trg || !trg_turf)
+	if(!trg || !trg_turf || thinking)
 		return
 	var/turf/our_turf = get_turf(src)
 	FormPath(our_turf,trg_turf)
-	if(!walk_timer && length(walk_path))
+	if(length(walk_path))
 		WalkPing(0)
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/FormPath(turf/start,turf/end)
@@ -425,32 +426,43 @@
 	var/list/closed_turfs = list()
 	for(var/cycle = 1 to max_cycles)
 		if(!focus_turf)
+			//If no focus_turf then something has gone terribly wrong.
 			stack_trace("FormPath:focus_turfmissing:cycle[cycle]:[type]")
 			return
+		//Mark the area we are checking.
+		FlickOnAtom(focus_turf,'icons/effects/cult_effects.dmi',"bloodsparkles",5)
 		var/list/temp_list = ReturnAdjacentTurfs(focus_turf)
 		for(var/turf/T in temp_list)
 			var/new_dir = get_dir(T,focus_turf)
+			//Replace dir if new check is made.
 			if(T in dir_list)
 				dir_list[T] = new_dir
 			else
 				dir_list += T
 				dir_list[T] = new_dir
+				//Add turf to openf
 				if(!(T in openf))
 					openf += T
+				//If turf val more than 1k dont bother
 				if(openf[T] >= 1000)
 					continue
+				//Appraise turf
 				openf[T] = AppraiseTurf(T,start,end)
+			//Remove after testing
+			var/obj/effect/temp_visual/dir_setting/curse/hand/s = new(T,new_dir)
 
+		//Add checked focus_turfs to closed_turfs list.
+		closed_turfs += focus_turf
+
+		//If focus_turf is the end dont worry about checking more.
 		if(focus_turf == end)
 			break
 
-		closed_turfs += focus_turf
-
+		//If we have openf turfs to choose from then pick one of those to check.
 		if(length(openf))
 			var/good_options = openf - closed_turfs
 			focus_turf = ReturnLowestValue(good_options)
-		for(var/turf/E in openf)
-			FlickOnAtom(E,'icons/effects/cult_effects.dmi',"bloodsparkles",5)
+		sleep(5)
 
 
 	//Okay well if we havent gotten to our destination consider the last turf the dest
@@ -470,9 +482,8 @@
 		if(!(our_tag in walk_path))
 			stack_trace("FormPath:selfmissing:[type]")
 			break
-		var/obj/effect/temp_visual/dir_setting/curse/hand/s = new(walkin_ere,walk_path[our_tag])
+		//var/obj/effect/temp_visual/dir_setting/curse/hand/s = new(walkin_ere,walk_path[our_tag])
 		walkin_ere = get_step(walkin_ere, walk_path[our_tag])
-		s.color = "red"
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/FormatDirections(list/dir_list = list(), turf/start, turf/end)
 	. = list()
@@ -568,8 +579,8 @@
 		if(S.density)
 			if(S.resistance_flags & INDESTRUCTIBLE)
 				return 10000
-			. += 8
-			total_extra += 8
+			. += 10
+			total_extra += 10
 			break
 
 	for(var/obj/machinery/M in O)
