@@ -336,8 +336,6 @@
 		return get_turf(src)
 	return locate(checker["x"],checker["y"],z)
 
-#undef PYTHAGOREAN
-
 //---------------------------------------------------
 
 /mob/living/simple_animal/hostile/gribble/ribble
@@ -408,19 +406,23 @@
 		walk_timer = null
 		return
 
+//
 /mob/living/simple_animal/hostile/gribble/ribble/proc/PathStep(atom/trg)
 	var/turf/trg_turf = get_turf(trg)
 	if(!trg || !trg_turf || thinking)
 		return
 	var/turf/our_turf = get_turf(src)
-	FormPath(our_turf,trg_turf)
+	thinking = TRUE
+	walk(src,0)
+	FormPath(trg_turf,our_turf)
+	thinking = FALSE
 	if(length(walk_path))
 		WalkPing(0)
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/FormPath(turf/start,turf/end)
 	walk_path = list()
-	var/turf/focus_turf = start
 	var/max_cycles = attempts_allowance + move_to_delay
+	var/turf/focus_turf = start
 	var/list/openf = list()
 	var/list/dir_list = list()
 	var/list/closed_turfs = list()
@@ -430,29 +432,54 @@
 			stack_trace("FormPath:focus_turfmissing:cycle[cycle]:[type]")
 			return
 		//Mark the area we are checking.
-		FlickOnAtom(focus_turf,'icons/effects/cult_effects.dmi',"bloodsparkles",5)
+		FlickOnAtom(focus_turf,'icons/effects/cult_effects.dmi',"bloodsparkles",10)
 		var/list/temp_list = ReturnAdjacentTurfs(focus_turf)
+		var/list/total_list = openf + closed_turfs
 		for(var/turf/T in temp_list)
 			var/new_dir = get_dir(T,focus_turf)
+			//remove_later
+			var/mark_turf = FALSE
 			//Replace dir if new check is made.
 			if(T in dir_list)
-				dir_list[T] = new_dir
+				//Skip steps that are already paths.
+			//	if(T in closed_turfs && T != start)
+			//		continue
+				var/tval = total_list[T]
+				var/nval
+				//Dont bother if its just a wall
+				if(tval >= 1000)
+					continue
+				//If its pointing at something that is cheaper than it then steal its val
+				var/turf/pointing_at = get_step(T, dir_list[T])
+				if(pointing_at in total_list && pointing_at.y != T.y && pointing_at.x != T.x)
+					nval = total_list[pointing_at]
+				if(nval && nval < tval)
+					dir_list[T] = new_dir
+					openf[T] = nval
+					mark_turf = TRUE
+
 			else
 				dir_list += T
 				dir_list[T] = new_dir
+				mark_turf = TRUE
 				//Add turf to openf
 				if(!(T in openf))
 					openf += T
-				//If turf val more than 1k dont bother
-				if(openf[T] >= 1000)
-					continue
 				//Appraise turf
 				openf[T] = AppraiseTurf(T,start,end)
+				if(openf[T] >= 1000)
+					closed_turfs += focus_turf
+					closed_turfs[focus_turf] = 1000
 			//Remove after testing
-			var/obj/effect/temp_visual/dir_setting/curse/hand/s = new(T,new_dir)
+			if(mark_turf)
+				var/obj/effect/temp_visual/dir_setting/slash/s = new(T,new_dir)
+				s.color = "yellow"
 
 		//Add checked focus_turfs to closed_turfs list.
 		closed_turfs += focus_turf
+		if(focus_turf in openf)
+			closed_turfs[focus_turf] = openf[focus_turf]
+		closed_turfs[focus_turf] = 0
 
 		//If focus_turf is the end dont worry about checking more.
 		if(focus_turf == end)
@@ -464,26 +491,26 @@
 			focus_turf = ReturnLowestValue(good_options)
 		sleep(5)
 
-
-	//Okay well if we havent gotten to our destination consider the last turf the dest
-	var/list/temp_list_two = ReturnAdjacentTurfs(focus_turf)
-	for(var/turf/T in temp_list_two)
-		var/new_dir_two = get_dir(T,focus_turf)
-		if(T in dir_list)
-			dir_list[T] = new_dir_two
-		else
-			dir_list += T
-			dir_list[T] = new_dir_two
-
 	walk_path = FormatDirections(dir_list, start,focus_turf)
-	var/turf/walkin_ere = get_turf(src)
-	for(var/turf/i in walk_path)
-		var/our_tag = "[walkin_ere.x],[walkin_ere.y]"
-		if(!(our_tag in walk_path))
-			stack_trace("FormPath:selfmissing:[type]")
-			break
-		//var/obj/effect/temp_visual/dir_setting/curse/hand/s = new(walkin_ere,walk_path[our_tag])
-		walkin_ere = get_step(walkin_ere, walk_path[our_tag])
+	for(var/i in walk_path)
+		var/alist/coords = UnpackCoords(i)
+		var/turf/marker = locate(coords["x"],coords["y"],z)
+		var/obj/effect/temp_visual/dir_setting/slash/s = new(marker,walk_path[i])
+		s.color = "red"
+
+/mob/living/simple_animal/hostile/gribble/ribble/proc/UnpackCoords(turf_tag)
+	if(isnum(turf_tag))
+		stack_trace("UnpackCoordsFail")
+		return FALSE
+	if(!turf_tag)
+		return
+	var/list/splitter = splittext(turf_tag,",")
+	var/turfx = splitter[1]
+	var/turfy = splitter[2]
+	turfx = text2num(turfx)
+	turfy = text2num(turfy)
+
+	return alist("x" = turfx, "y" = turfy)
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/FormatDirections(list/dir_list = list(), turf/start, turf/end)
 	. = list()
@@ -495,35 +522,11 @@
 		stack_trace("FormatDirections:nostartorend:[type]")
 		return
 
-	for(var/turf/i in dir_list)
-		if(i == end)
-			new /obj/effect/temp_visual/dir_setting/tailsweep(i)
-			continue
-		new /obj/effect/temp_visual/dir_setting/slash(i, dir_list[i])
-
 	var/list/return_list = list()
-	var/turf/focus_turf = start
-	for(var/cycle = 1 to (15 + move_to_delay))
-		if(!(focus_turf in dir_list))
-			return return_list
-		var/tag_turf = "[focus_turf.x],[focus_turf.y]"
-		var/next_dir = dir_list[focus_turf]
-		if(!next_dir)
-			stack_trace("FormatDirections:[tag_turf]:cycle[cycle]:[type]")
-			return
+	for(var/turf/floor in dir_list)
+		var/tag_turf = "[floor.x],[floor.y]"
 		return_list += tag_turf
-		return_list[tag_turf] = next_dir
-		if(focus_turf == end)
-			return_list[tag_turf] = "dest"
-			break
-		var/turf/new_turf = get_step(focus_turf, next_dir)
-		if(tag_turf in walk_path)
-			stack_trace("FormatDirections:retracing:[type]")
-			return return_list
-		if(!isturf(new_turf))
-			stack_trace("FormatDirections:new_turf_fail:[type]")
-			return list()
-		focus_turf = new_turf
+		return_list[tag_turf] = dir_list[floor]
 
 	return return_list
 
@@ -546,14 +549,25 @@
 		if(WEST)
 			return EAST
 
+/mob/living/simple_animal/hostile/gribble/ribble/proc/CountDist(turf/T, turf/dest)
+	if(!T || !dest)
+		return 0
+	return PYTHAGOREAN(T.x,dest.x,T.y,dest.y) * 10
+
 /mob/living/simple_animal/hostile/gribble/ribble/proc/AppraiseTurf(turf/T, turf/start, turf/end)
 	. = 0
 	if(T == end)
 		return -1
-	. += get_dist(T,end) * 10
-	. += get_dist(T,start) * 10
 	if(T.density || !istype(T, /turf/open))
 		return 10000
+	//Hcost
+	var/h_cost = CountDist(T,end)
+	//Gcost
+	var/g_cost = CountDist(T,start)
+
+	. += (h_cost + g_cost)
+
+
 	//If not open turf its likely a wall.
 	var/turf/open/O = T
 	if(istype(O, /turf/open/water/deep))
@@ -594,8 +608,9 @@
 				. += 5
 				total_extra += 5
 				break
-			. += 2
-			total_extra += 2
+			//Mostly because im sick of them ignoring doors.
+			. -= 5
+			total_extra -= 5
 
 	for(var/obj/effect/turf_fire/F in O)
 		total_check++
@@ -628,6 +643,8 @@
 	var/fz = focus_turf.z
 	return_list += block(fx -1,fy -1,fz,fx +1,fy +1,fz) - focus_turf
 	return return_list
+
+#undef PYTHAGOREAN
 
 //---------------------------------------------------
 /mob/living/simple_animal/hostile/gribble/nibble
