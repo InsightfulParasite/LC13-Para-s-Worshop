@@ -341,10 +341,17 @@
 /mob/living/simple_animal/hostile/gribble/ribble
 	name = "ribble"
 	color = "purple"
-	var/attempts_allowance = 10
 	var/walk_timer = null
-	var/thinking = FALSE
 	var/list/walk_path = list()
+	//Possibly a terrible attempt at sorting
+	var/alist/walk_variables = list(
+		//Very generous
+		"attempts" = 50,
+		"thinking" = 0,
+		"slow" = 0,
+		"remap_on_dest" = TRUE,
+		"redraw" = 0,
+		)
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/FlickOnAtom(atom/A, icon_file, icon_file_state, flicktime = 10)
 	var/image/effect_flick = image(icon_file,A,icon_file_state,CLOSED_FIREDOOR_LAYER)
@@ -366,13 +373,45 @@
 		approaching_target = FALSE
 
 	var/dist = get_dist(src,target)
-	if(dist > 1 && dist < 16 && target)
-		PathStep(target)
-		return
-	if(TIMER_COOLDOWN_CHECK(src,walk_timer))
-		deltimer(walk_timer)
-		walk_timer = null
+	if(dist > 1 && dist < 10 && target)
+		if(PathStep(target))
+			walk(src,0)
+			return
+	deltimer(walk_timer)
+	walk_timer = null
+	//Onwards with the OLD CODE!
 	return ..()
+
+//Summoning the Path
+/mob/living/simple_animal/hostile/gribble/ribble/proc/PathStep(atom/trg)
+	var/turf/trg_turf = get_turf(trg)
+	if(!trg || !trg_turf || walk_variables["thinking"])
+		return
+	var/turf/our_turf = get_turf(src)
+	var/good_path = FALSE
+	//true false seems to not play well with alists
+	walk_variables["thinking"] = TRUE
+	var/our_tag = "[x],[y]"
+	var/trg_tag = "[trg.x],[trg.y]"
+	var/walk_path_dir = null
+	//If our tag is in the map and our targets tag is in the map just reuse.
+	if(our_tag in walk_path && trg_tag in walk_path && walk_variables["redraw"] < 2)
+		walk_path_dir = walk_path[trg_tag]
+
+	//If our target isnt stationary just keep the map.
+	if(walk_path_dir != "dest")
+		if(FormPath(trg_turf,our_turf))
+			good_path = TRUE
+
+	//To prevent us using the same map forever we will redraw after 2 attempts
+	walk_variables["redraw"] += 1
+
+	walk_variables["thinking"] = FALSE
+	if(length(walk_path) && good_path)
+		WalkPing(0)
+		walk_variables["redraw"] = 0
+		return TRUE
+	//reset redraw counter
 
 //The actual movement that is called over and over.
 /mob/living/simple_animal/hostile/gribble/ribble/proc/WalkPing(timer_called = 0)
@@ -385,6 +424,9 @@
 		return
 	if(!isturf(loc))
 		return
+	//If next to target do not move into them.
+	if(get_dist(target,src) <= 1)
+		return
 
 	say("WalkPing[timer_called]")
 	//Give me our xy tag.
@@ -393,35 +435,21 @@
 	var/timer_cooldown = max(1, move_to_delay)
 	if(our_tag in walk_path)
 		var/walk_tag = walk_path[our_tag]
-
-		if(walk_tag == "dest")
-			if(target)
-				Goto(target, move_to_delay)
-			return
-		src.Move(steppers, walk_path[our_tag])
-		if(timer_called < 4)
-			walk_timer = addtimer(CALLBACK(src, PROC_REF(WalkPing), timer_called + 1), timer_cooldown, TIMER_STOPPABLE)
-			return
 		deltimer(walk_timer)
 		walk_timer = null
-		return
 
-//
-/mob/living/simple_animal/hostile/gribble/ribble/proc/PathStep(atom/trg)
-	var/turf/trg_turf = get_turf(trg)
-	if(!trg || !trg_turf || thinking)
-		return
-	var/turf/our_turf = get_turf(src)
-	thinking = TRUE
-	walk(src,0)
-	FormPath(trg_turf,our_turf)
-	thinking = FALSE
-	if(length(walk_path))
-		WalkPing(0)
+		if(walk_tag == "dest")
+			//causes "jolts" of movement
+			if(target && walk_variables["remap_on_dest"])
+				Goto(target, move_to_delay)
+			return
+		Move(steppers, walk_path[our_tag])
+		if(timer_called < 20)
+			walk_timer = addtimer(CALLBACK(src, PROC_REF(WalkPing), timer_called + 1), timer_cooldown, TIMER_STOPPABLE)
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/FormPath(turf/start,turf/end)
 	walk_path = list()
-	var/max_cycles = attempts_allowance + move_to_delay
+	var/max_cycles = walk_variables["attempts"] + move_to_delay
 	var/turf/focus_turf = start
 	var/list/openf = list()
 	var/list/dir_list = list()
@@ -471,7 +499,7 @@
 					closed_turfs += focus_turf
 					closed_turfs[focus_turf] = 1000
 			//Remove after testing
-			if(mark_turf)
+			if(mark_turf && walk_variables["slow"])
 				var/obj/effect/temp_visual/dir_setting/slash/s = new(T,new_dir)
 				s.color = "yellow"
 
@@ -489,15 +517,28 @@
 		if(length(openf))
 			var/good_options = openf - closed_turfs
 			focus_turf = ReturnLowestValue(good_options)
-		sleep(5)
+			//Look i dont care whats behind that wall your not pathing through it. Unless.
+			if(good_options[focus_turf] >= 1000)
+				break
 
-	walk_path = FormatDirections(dir_list, start,focus_turf)
-	for(var/i in walk_path)
+		if(walk_variables["slow"])
+			sleep(5)
+
+	var/tag_turf = "[x],[y]"
+	var/list/replace_walk_path = FormatDirections(dir_list, start,focus_turf)
+	//We are not in the list how can we possibly use this map?
+	if(!(tag_turf in replace_walk_path))
+		return FALSE
+	//Mostly visual remove later
+	for(var/i in replace_walk_path)
 		var/alist/coords = UnpackCoords(i)
 		var/turf/marker = locate(coords["x"],coords["y"],z)
-		var/obj/effect/temp_visual/dir_setting/slash/s = new(marker,walk_path[i])
+		var/obj/effect/temp_visual/dir_setting/slash/s = new(marker,replace_walk_path[i])
 		s.color = "red"
+	walk_path = replace_walk_path.Copy()
+	return TRUE
 
+//Remove later
 /mob/living/simple_animal/hostile/gribble/ribble/proc/UnpackCoords(turf_tag)
 	if(isnum(turf_tag))
 		stack_trace("UnpackCoordsFail")
@@ -527,9 +568,12 @@
 		var/tag_turf = "[floor.x],[floor.y]"
 		return_list += tag_turf
 		return_list[tag_turf] = dir_list[floor]
+		if(floor == start)
+			return_list[tag_turf] = "dest"
 
 	return return_list
 
+//Remove later
 /mob/living/simple_animal/hostile/gribble/ribble/proc/InvertDirection(num)
 	switch(num)
 		if(NORTH)
@@ -632,7 +676,7 @@
 		if(total_check >= 10)
 			break
 		if(L.density)
-			. += 1
+			. += 10
 			break
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/ReturnAdjacentTurfs(turf/focus_turf)
