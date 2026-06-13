@@ -347,10 +347,11 @@
 	var/alist/walk_variables = list(
 		//Very generous
 		"attempts" = 50,
-		"thinking" = 0,
-		"slow" = 0,
+		"thinking" = FALSE,
+		"slow" = FALSE,
 		"remap_on_dest" = TRUE,
-		"redraw" = 0,
+		"redraw" = FALSE,
+		"no_diagonals" = FALSE
 		)
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/FlickOnAtom(atom/A, icon_file, icon_file_state, flicktime = 10)
@@ -685,7 +686,11 @@
 	var/fx = focus_turf.x
 	var/fy = focus_turf.y
 	var/fz = focus_turf.z
-	return_list += block(fx -1,fy -1,fz,fx +1,fy +1,fz) - focus_turf
+	if(walk_variables["no_diagonals"])
+		return_list += block(fx - 1,fy,fz,fx + 1,fy,fz) - focus_turf
+		return_list += block(fx,fy -1 ,fz,fx,fy + 1,fz) - focus_turf
+	else
+		return_list += block(fx -1,fy -1,fz,fx +1,fy +1,fz) - focus_turf
 	return return_list
 
 #undef PYTHAGOREAN
