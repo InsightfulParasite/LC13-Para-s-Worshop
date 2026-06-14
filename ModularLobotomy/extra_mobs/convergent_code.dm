@@ -341,6 +341,7 @@
 /mob/living/simple_animal/hostile/gribble/ribble
 	name = "ribble"
 	color = "purple"
+	var/ignore_tag
 	var/walk_timer = null
 	var/list/walk_path = list()
 	//Possibly a terrible attempt at sorting
@@ -348,11 +349,47 @@
 		//Very generous
 		"attempts" = 50,
 		"thinking" = FALSE,
-		"slow" = FALSE,
+		//If we redraw a map when we reach our dest
 		"remap_on_dest" = TRUE,
-		"redraw" = FALSE,
-		"no_diagonals" = FALSE
+		//Countdown for how many times we keep our map.
+		"redraw" = 0,
+		//Travels strictly in adjacent tiles
+		"no_diagonals" = FALSE,
+		//checks closed turfs afterwards to avoid them
+		"careful" = TRUE,
 		)
+
+/mob/living/simple_animal/hostile/gribble/nibble/LosePatience()
+	if(isliving(target))
+		var/mob/living/L = target
+		ignore_tag = L.tag
+	return ..()
+
+/mob/living/simple_animal/hostile/gribble/nibble/CanAttack(atom/the_target)
+	. = ..()
+	if(. && isliving(the_target))
+		var/mob/living/L = the_target
+		if(L.tag == ignore_tag && get_dist(src,L) > 2)
+			return FALSE
+
+/mob/living/simple_animal/hostile/gribble/nibble/ListTargets(max_range = vision_range) //Step 1, find out what we can see
+	. = list()
+	var/dark_vision = see_in_dark + (target ? 5 : 0)
+	var/list/sight = view(max_range,get_turf(targets_from))
+	for(var/turf/T in sight)
+		if(isclosedturf(T) || !can_see(targets_from, T))
+			continue
+		var/turf_dist = get_dist(targets_from,T)
+		if(max_range > dark_vision && turf_dist > dark_vision)
+			var/light_amount = T.get_lumcount()
+			if(light_amount < SHADOW_SPECIES_LIGHT_THRESHOLD)
+				continue
+		for(var/atom/O in T)
+			if(O == src)
+				continue
+			if(isdead(O) || isprojectile(O) || istype(O,/obj/effect/landmark) || istype(O, /atom/movable/lighting_object))
+				continue
+			. += O
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/FlickOnAtom(atom/A, icon_file, icon_file_state, flicktime = 10)
 	var/image/effect_flick = image(icon_file,A,icon_file_state,CLOSED_FIREDOOR_LAYER)
@@ -428,8 +465,6 @@
 	//If next to target do not move into them.
 	if(get_dist(target,src) <= 1)
 		return
-
-	say("WalkPing[timer_called]")
 	//Give me our xy tag.
 	var/our_tag = "[x],[y]"
 	var/turf/steppers = get_step(src, walk_path[our_tag])
@@ -462,7 +497,7 @@
 			return
 		//Mark the area we are checking.
 		FlickOnAtom(focus_turf,'icons/effects/cult_effects.dmi',"bloodsparkles",10)
-		var/list/temp_list = ReturnAdjacentTurfs(focus_turf)
+		var/list/temp_list = ReturnAdjacentTurfs(focus_turf, walk_variables["no_diagonals"])
 		var/list/total_list = openf + closed_turfs
 		for(var/turf/T in temp_list)
 			var/new_dir = get_dir(T,focus_turf)
@@ -475,11 +510,21 @@
 			//		continue
 				var/tval = total_list[T]
 				var/nval
-				//Dont bother if its just a wall
-				if(tval >= 1000)
-					continue
 				//If its pointing at something that is cheaper than it then steal its val
 				var/turf/pointing_at = get_step(T, dir_list[T])
+				//Dont bother if its just a wall
+				if(tval >= 1000)
+					if(walk_variables["careful"])
+						var/list/double_check_turfs = ReturnAdjacentTurfs(T, TRUE)
+						for(var/turf/check in double_check_turfs)
+							if(!(check in dir_list))
+								continue
+							var/flattened_dir = FlattenDiagonal(dir_list[check], get_dir(check,T))
+							if(flattened_dir)
+								dir_list[check] = flattened_dir
+								SpawnMarker(check,flattened_dir,"green")
+					continue
+				//If in total_list with a openf value and is diagonal
 				if(pointing_at in total_list && pointing_at.y != T.y && pointing_at.x != T.x)
 					nval = total_list[pointing_at]
 				if(nval && nval < tval)
@@ -501,8 +546,7 @@
 					closed_turfs[focus_turf] = 1000
 			//Remove after testing
 			if(mark_turf && walk_variables["slow"])
-				var/obj/effect/temp_visual/dir_setting/slash/s = new(T,new_dir)
-				s.color = "yellow"
+				SpawnMarker(T,new_dir,"yellow")
 
 		//Add checked focus_turfs to closed_turfs list.
 		closed_turfs += focus_turf
@@ -522,9 +566,6 @@
 			if(good_options[focus_turf] >= 1000)
 				break
 
-		if(walk_variables["slow"])
-			sleep(5)
-
 	var/tag_turf = "[x],[y]"
 	var/list/replace_walk_path = FormatDirections(dir_list, start,focus_turf)
 	//We are not in the list how can we possibly use this map?
@@ -534,8 +575,7 @@
 	for(var/i in replace_walk_path)
 		var/alist/coords = UnpackCoords(i)
 		var/turf/marker = locate(coords["x"],coords["y"],z)
-		var/obj/effect/temp_visual/dir_setting/slash/s = new(marker,replace_walk_path[i])
-		s.color = "red"
+		SpawnMarker(marker,replace_walk_path[i],"red")
 	walk_path = replace_walk_path.Copy()
 	return TRUE
 
@@ -553,6 +593,10 @@
 	turfy = text2num(turfy)
 
 	return alist("x" = turfx, "y" = turfy)
+
+/mob/living/simple_animal/hostile/gribble/ribble/proc/SpawnMarker(turf, direction, mark_color = "red")
+	var/obj/effect/temp_visual/dir_setting/slash/s = new(turf,direction)
+	s.color = mark_color
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/FormatDirections(list/dir_list = list(), turf/start, turf/end)
 	. = list()
@@ -574,25 +618,28 @@
 
 	return return_list
 
-//Remove later
-/mob/living/simple_animal/hostile/gribble/ribble/proc/InvertDirection(num)
-	switch(num)
-		if(NORTH)
-			return SOUTH
-		if(NORTHWEST)
-			return SOUTHEAST
-		if(NORTHEAST)
-			return SOUTHWEST
-		if(SOUTH)
-			return NORTH
-		if(SOUTHEAST)
-			return NORTHWEST
-		if(SOUTHWEST)
-			return NORTHEAST
-		if(EAST)
+//For dangerous turfs. If a dangerous turf is north of a arrow pointing northeast it will change it to east.
+/mob/living/simple_animal/hostile/gribble/ribble/proc/FlattenDiagonal(direct, remove_dir)
+	if(direct == NORTHWEST)
+		if(remove_dir == NORTH)
 			return WEST
-		if(WEST)
+		if(remove_dir == WEST)
+			return NORTH
+	if(direct == NORTHEAST)
+		if(remove_dir == NORTH)
 			return EAST
+		if(remove_dir == EAST)
+			return NORTH
+	if(direct == SOUTHEAST)
+		if(remove_dir == SOUTH)
+			return EAST
+		if(remove_dir == EAST)
+			return SOUTH
+	if(direct == SOUTHWEST)
+		if(remove_dir == SOUTH)
+			return WEST
+		if(remove_dir == WEST)
+			return SOUTH
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/CountDist(turf/T, turf/dest)
 	if(!T || !dest)
@@ -650,12 +697,12 @@
 			if(!istype(M,/obj/machinery/door))
 				if(M.resistance_flags & INDESTRUCTIBLE)
 					return 10000
-				. += 5
-				total_extra += 5
+				. += 20
+				total_extra += 20
 				break
 			//Mostly because im sick of them ignoring doors.
-			. -= 5
-			total_extra -= 5
+			. -= 10
+			total_extra -= 10
 
 	for(var/obj/effect/turf_fire/F in O)
 		total_check++
@@ -680,13 +727,13 @@
 			. += 10
 			break
 
-/mob/living/simple_animal/hostile/gribble/ribble/proc/ReturnAdjacentTurfs(turf/focus_turf)
+/mob/living/simple_animal/hostile/gribble/ribble/proc/ReturnAdjacentTurfs(turf/focus_turf, strict_adjacent = FALSE)
 	var/list/return_list = list()
 	//Just give me adjacent turfs
 	var/fx = focus_turf.x
 	var/fy = focus_turf.y
 	var/fz = focus_turf.z
-	if(walk_variables["no_diagonals"])
+	if(strict_adjacent)
 		return_list += block(fx - 1,fy,fz,fx + 1,fy,fz) - focus_turf
 		return_list += block(fx,fy -1 ,fz,fx,fy + 1,fz) - focus_turf
 	else
@@ -696,51 +743,3 @@
 #undef PYTHAGOREAN
 
 //---------------------------------------------------
-/mob/living/simple_animal/hostile/gribble/nibble
-	name = "nibble"
-	color = "red"
-	var/ignore_tag
-
-/mob/living/simple_animal/hostile/gribble/nibble/LosePatience()
-	if(isliving(target))
-		var/mob/living/L = target
-		ignore_tag = L.tag
-	return ..()
-
-/mob/living/simple_animal/hostile/gribble/nibble/CanAttack(atom/the_target)
-	. = ..()
-	if(. && isliving(the_target))
-		var/mob/living/L = the_target
-		if(L.tag == ignore_tag && get_dist(src,L) > 2)
-			return FALSE
-
-/mob/living/simple_animal/hostile/gribble/nibble/ListTargets(max_range = vision_range) //Step 1, find out what we can see
-	. = list()
-	var/L = 0
-	var/I = 0
-	var/S = 0
-	var/E = 0
-	var/dark_vision = see_in_dark + (target ? 5 : 0)
-	var/list/sight = view(max_range,get_turf(targets_from))
-	for(var/turf/T in sight)
-		if(isclosedturf(T) || !can_see(targets_from, T))
-			S++
-			continue
-		var/turf_dist = get_dist(targets_from,T)
-		if(max_range > dark_vision && turf_dist > dark_vision)
-			var/light_amount = T.get_lumcount()
-			if(light_amount < SHADOW_SPECIES_LIGHT_THRESHOLD)
-				S++
-				continue
-		L++
-		for(var/atom/O in T)
-			if(O == src)
-				E++
-				continue
-			if(isdead(O) || isprojectile(O) || istype(O,/obj/effect/landmark) || istype(O, /atom/movable/lighting_object))
-				E++
-				continue
-			. += O
-			I++
-			//to_chat(user, O ? "[O.type]/Time:[world.time]" : "null")
-	say("ListTargets|[L]:Turfs/[I]:Objects/[S]:SkippedTurfs/[E]SkippedObj")
