@@ -359,20 +359,20 @@
 		"careful" = TRUE,
 		)
 
-/mob/living/simple_animal/hostile/gribble/nibble/LosePatience()
+/mob/living/simple_animal/hostile/gribble/ribble/LosePatience()
 	if(isliving(target))
 		var/mob/living/L = target
 		ignore_tag = L.tag
 	return ..()
 
-/mob/living/simple_animal/hostile/gribble/nibble/CanAttack(atom/the_target)
+/mob/living/simple_animal/hostile/gribble/ribble/CanAttack(atom/the_target)
 	. = ..()
 	if(. && isliving(the_target))
 		var/mob/living/L = the_target
 		if(L.tag == ignore_tag && get_dist(src,L) > 2)
 			return FALSE
 
-/mob/living/simple_animal/hostile/gribble/nibble/ListTargets(max_range = vision_range) //Step 1, find out what we can see
+/mob/living/simple_animal/hostile/gribble/ribble/ListTargets(max_range = vision_range) //Step 1, find out what we can see
 	. = list()
 	var/dark_vision = see_in_dark + (target ? 5 : 0)
 	var/list/sight = view(max_range,get_turf(targets_from))
@@ -391,19 +391,13 @@
 				continue
 			. += O
 
-/mob/living/simple_animal/hostile/gribble/ribble/proc/FlickOnAtom(atom/A, icon_file, icon_file_state, flicktime = 10)
-	var/image/effect_flick = image(icon_file,A,icon_file_state,CLOSED_FIREDOOR_LAYER)
-	effect_flick.plane = GAME_PLANE
-	effect_flick.appearance_flags = APPEARANCE_UI_IGNORE_ALPHA
-	flick_overlay_view(effect_flick, A, flicktime)
-	return effect_flick
-
 /mob/living/simple_animal/hostile/gribble/ribble/Destroy()
 	if(TIMER_COOLDOWN_CHECK(src,walk_timer))
 		deltimer(walk_timer)
 		return TRUE
 	return ..()
 
+//Highly Experimental Pathing Code
 /mob/living/simple_animal/hostile/gribble/ribble/Goto(target, delay, minimum_distance)
 	if(target == src.target)
 		approaching_target = TRUE
@@ -495,14 +489,12 @@
 			//If no focus_turf then something has gone terribly wrong.
 			stack_trace("FormPath:focus_turfmissing:cycle[cycle]:[type]")
 			return
-		//Mark the area we are checking.
-		FlickOnAtom(focus_turf,'icons/effects/cult_effects.dmi',"bloodsparkles",10)
+		if(get_dist(focus_turf, start) > 20)
+			break
 		var/list/temp_list = ReturnAdjacentTurfs(focus_turf, walk_variables["no_diagonals"])
 		var/list/total_list = openf + closed_turfs
 		for(var/turf/T in temp_list)
 			var/new_dir = get_dir(T,focus_turf)
-			//remove_later
-			var/mark_turf = FALSE
 			//Replace dir if new check is made.
 			if(T in dir_list)
 				//Skip steps that are already paths.
@@ -522,7 +514,6 @@
 							var/flattened_dir = FlattenDiagonal(dir_list[check], get_dir(check,T))
 							if(flattened_dir)
 								dir_list[check] = flattened_dir
-								SpawnMarker(check,flattened_dir,"green")
 					continue
 				//If in total_list with a openf value and is diagonal
 				if(pointing_at in total_list && pointing_at.y != T.y && pointing_at.x != T.x)
@@ -530,12 +521,10 @@
 				if(nval && nval < tval)
 					dir_list[T] = new_dir
 					openf[T] = nval
-					mark_turf = TRUE
 
 			else
 				dir_list += T
 				dir_list[T] = new_dir
-				mark_turf = TRUE
 				//Add turf to openf
 				if(!(T in openf))
 					openf += T
@@ -544,9 +533,6 @@
 				if(openf[T] >= 1000)
 					closed_turfs += focus_turf
 					closed_turfs[focus_turf] = 1000
-			//Remove after testing
-			if(mark_turf && walk_variables["slow"])
-				SpawnMarker(T,new_dir,"yellow")
 
 		//Add checked focus_turfs to closed_turfs list.
 		closed_turfs += focus_turf
@@ -571,32 +557,8 @@
 	//We are not in the list how can we possibly use this map?
 	if(!(tag_turf in replace_walk_path))
 		return FALSE
-	//Mostly visual remove later
-	for(var/i in replace_walk_path)
-		var/alist/coords = UnpackCoords(i)
-		var/turf/marker = locate(coords["x"],coords["y"],z)
-		SpawnMarker(marker,replace_walk_path[i],"red")
 	walk_path = replace_walk_path.Copy()
 	return TRUE
-
-//Remove later
-/mob/living/simple_animal/hostile/gribble/ribble/proc/UnpackCoords(turf_tag)
-	if(isnum(turf_tag))
-		stack_trace("UnpackCoordsFail")
-		return FALSE
-	if(!turf_tag)
-		return
-	var/list/splitter = splittext(turf_tag,",")
-	var/turfx = splitter[1]
-	var/turfy = splitter[2]
-	turfx = text2num(turfx)
-	turfy = text2num(turfy)
-
-	return alist("x" = turfx, "y" = turfy)
-
-/mob/living/simple_animal/hostile/gribble/ribble/proc/SpawnMarker(turf, direction, mark_color = "red")
-	var/obj/effect/temp_visual/dir_setting/slash/s = new(turf,direction)
-	s.color = mark_color
 
 /mob/living/simple_animal/hostile/gribble/ribble/proc/FormatDirections(list/dir_list = list(), turf/start, turf/end)
 	. = list()
