@@ -25,6 +25,8 @@
 	threat_level = TETH_LEVEL
 	start_qliphoth = 2
 
+	smart_pathing = FALSE
+
 	ranged = 1
 	retreat_distance = 3
 	minimum_distance = 1
