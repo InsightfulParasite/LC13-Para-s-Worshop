@@ -26,6 +26,8 @@
 	icon_living = "matriarch"
 	icon_dead = "matriarch_dead"
 	faction = list("indigo_ordeal")
+	move_force = MOVE_FORCE_STRONG
+	move_resist = MOVE_FORCE_STRONG
 	maxHealth = 7500
 	health = 7500
 	stat_attack = DEAD

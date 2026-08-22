@@ -143,12 +143,26 @@
 			//You can swap with the person you are dragging on grab intent, and restrained people in most cases
 			if(M.pulledby == src && a_intent == INTENT_GRAB && !too_strong)
 				mob_swap = TRUE
-			else if(
-				!(HAS_TRAIT(M, TRAIT_NOMOBSWAP) || HAS_TRAIT(src, TRAIT_NOMOBSWAP))&&\
-				((HAS_TRAIT(M, TRAIT_RESTRAINED) && !too_strong) || M.a_intent == INTENT_HELP) &&\
-				(HAS_TRAIT(src, TRAIT_RESTRAINED) || a_intent == INTENT_HELP)
-			)
-				mob_swap = TRUE
+			/*
+			* Criteria for swapping places.
+			* > Both parties dont have the trait NOMOBSWAP
+			* > We are restrained and are not stronger than their move resist
+			* 	> Or their intent is HELP
+			* > They are restrained
+			* 	> Or our intent is HELP
+			* We cant swap places if im HARM intent and they are restrained.
+			*/
+			else if(!(HAS_TRAIT(M, TRAIT_NOMOBSWAP) || HAS_TRAIT(src, TRAIT_NOMOBSWAP)))
+				if((HAS_TRAIT(M, TRAIT_RESTRAINED) && !too_strong) || M.a_intent == INTENT_HELP)
+					if(HAS_TRAIT(src, TRAIT_RESTRAINED) || a_intent == INTENT_HELP)
+						mob_swap = TRUE
+				//If neither is restrained
+				if(!(HAS_TRAIT(M, TRAIT_RESTRAINED) && HAS_TRAIT(src, TRAIT_RESTRAINED)))
+					//If both are of the same faction but one is stronger in move force and neither of us are players.
+					if(faction_check_mob(M) && M.move_resist < move_force && !M.client)
+						//Issue, pathfinding automatically stops entities if a human is in their way.
+						mob_swap = TRUE
+
 		if(mob_swap)
 			//switch our position with M
 			if(loc && !loc.Adjacent(M.loc))

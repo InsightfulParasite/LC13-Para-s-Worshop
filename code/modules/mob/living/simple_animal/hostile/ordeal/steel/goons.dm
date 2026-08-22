@@ -9,6 +9,8 @@
 	icon_dead = "gcorp_corpse"
 	faction = list("Gene_Corp")
 	mob_biotypes = MOB_ORGANIC|MOB_HUMANOID|MOB_BUG
+	move_force = MOVE_FORCE_WEAK
+	move_resist = MOVE_FORCE_WEAK
 	maxHealth = 220
 	health = 220
 	melee_damage_type = RED_DAMAGE
@@ -84,7 +86,8 @@
 	icon_living = "gcorp_beetle"
 	icon_dead = "dead_beetle"
 	faction = list("Gene_Corp")
-	mob_biotypes = MOB_ORGANIC|MOB_HUMANOID|MOB_BUG
+	move_force = MOVE_FORCE_NORMAL
+	move_resist = MOVE_FORCE_NORMAL
 	maxHealth = 1300
 	health = 1300
 	melee_damage_lower = 40

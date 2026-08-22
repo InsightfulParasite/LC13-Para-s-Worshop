@@ -8,6 +8,8 @@
 	icon_living = "gcorp"
 	icon_dead = "gcorp_corpse"
 	speak_emote = list("chitters", "buzzes")
+	move_force = MOVE_FORCE_STRONG
+	move_resist = MOVE_FORCE_STRONG
 	pixel_x = -16
 	base_pixel_x = -16
 	death_message = "falls to the floor violently spasming before falling still."

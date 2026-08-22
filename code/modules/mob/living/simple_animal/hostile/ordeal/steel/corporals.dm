@@ -7,6 +7,8 @@
 	icon_living = "gcorp5"
 	icon_dead = "gcorp_corpse2"
 	death_message = "salutes weakly before falling."
+	move_force = MOVE_FORCE_NORMAL + 1
+	move_resist = MOVE_FORCE_NORMAL + 1
 	maxHealth = 1000	//Effectively have 750 HP
 	health = 1000		//Effectively have 750 HP
 	rapid_melee = 2
@@ -43,7 +45,7 @@
 		say("FOR G CORP!!!")
 		animate(src, transform = matrix()*1.8, color = "#FF0000", time = 15)
 		addtimer(CALLBACK(src, PROC_REF(DeathExplosion)), 15)
-	..()
+	return ..()
 
 //Activates the speed up.
 /mob/living/simple_animal/hostile/ordeal/steel_dawn/steel_noon/handle_automated_action()

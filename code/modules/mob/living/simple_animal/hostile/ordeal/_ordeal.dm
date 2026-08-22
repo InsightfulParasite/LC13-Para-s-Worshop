@@ -8,7 +8,7 @@
 	aggro_vision_range = 20
 
 /mob/living/simple_animal/hostile/ordeal/death(gibbed)
-	..()
+	. = ..()
 	mob_size = MOB_SIZE_HUMAN //let body bags carry dead ordeals
 
 
