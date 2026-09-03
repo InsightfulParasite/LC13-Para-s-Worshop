@@ -67,7 +67,7 @@
 	//projectile this mob uses in the DecendingPin attack
 	var/pin_projectile_type = /obj/projectile/flowerpin
 	//Abilities
-	var/obj/effect/proc_holder/ability/nix/levin_a
+	var/obj/effect/proc_holder/ability/void/levin_a
 	var/obj/effect/proc_holder/ability/relocate/reloc_a
 	//Turfs we can currently effect
 	var/list/arena_turfs = list()
@@ -182,7 +182,7 @@
 * ---
 * Gathering Rain: Rapid attack for every pin.
 * ---
-* nix: Scrap or have it consume a charge to inflict rupture.
+* void: Scrap or have it consume a charge to inflict rupture.
 * ---
 * Since body is obscured should we include a baba yaga esque foot stomp?
 */
@@ -201,7 +201,7 @@
 			if(5)
 				GatheringRain(trg)
 			if(6)
-				nix(trg)
+				void(trg)
 			if(7)
 				WrathScale(trg)
 				attack_cycle = 0
@@ -240,8 +240,8 @@
 			var/obj/projectile/flowerpin/new_pin = DeferProjectile(pin_projectile_type, trg, get_turf(src), 8 + iteration)
 			new_pin.set_angle(WRAP(attack_angle + rand(-30,30), 0 ,360))
 
-/mob/living/simple_animal/hostile/abnormality/yinglong/proc/nix(trg)
-	levin_a.Perform(null, src, arena_turfs)
+/mob/living/simple_animal/hostile/abnormality/yinglong/proc/void(trg)
+	levin_a.Perform(null, src)
 
 /mob/living/simple_animal/hostile/abnormality/yinglong/proc/WrathScale(trg)
 	var/flower_charges = clamp(flower_pins, 1, 4)
@@ -410,213 +410,111 @@
 	return return_list
 
 /*--\
-|NIX|
+|void|
 \--*/
-/obj/effect/proc_holder/ability/nix
-	name = "Nix"
+/obj/effect/proc_holder/ability/void
+	name = "void"
 	desc = "\"Everybodys agony becomes one\" releases a wave of Hatred beams across \
 		the area. This attack releases a blessing of the magical girls for your \
 		opponent to use."
 	action_icon_state = "helper_dash0"
 	base_icon_state = "helper_dash"
 	cooldown_time = 10 SECONDS
-	var/wave_area_halfwidth = 7
-	var/wave_area_halfheight = 7
-	//How fast between telegraph and beam.
-	var/wave_speed = 2
-	//The larger the wave delay the longer window someone can jump between the beams.
-	var/wave_delay = 2
 
-/obj/effect/proc_holder/ability/nix/can_cast(mob/user = usr)
+/obj/effect/proc_holder/ability/void/can_cast(mob/user = usr)
 	if(isabnormalitymob(user))
 		var/mob/living/simple_animal/hostile/abnormality/abno = user
 		if(abno.IsContained())
 			return FALSE
 	return ..()
 
-/obj/effect/proc_holder/ability/nix/Perform(target, mob/living/user, area_list)
+/obj/effect/proc_holder/ability/void/Perform(target, mob/living/user)
 	. = ..()
 	//reset the emergency stop so we are not forever stuck.
 	if(!user)
 		return
 
-	if(!area_list || !length(area_list))
-		area_list = view(get_turf(user))
 	ToggleAct(user,FALSE)
 
-	AttackNow(user, area_list)
+	AttackNow(user)
 
 	AbnoInteraction(user)
 	ToggleAct(user,TRUE)
 
-/obj/effect/proc_holder/ability/nix/proc/AttackNow(mob/living/caster, list/arena_turfs)
-	if(!caster || !arena_turfs)
+/obj/effect/proc_holder/ability/void/proc/AttackNow(mob/living/caster)
+	if(!caster)
 		return
-
-	var/caster_x = caster.x
-	var/caster_y = caster.y
-	var/caster_z = caster.z
-
-	if(length(arena_turfs))
-		//Yeah i basically put a buff into oncoming traffic. -IP
-		var/thing_to_place = pick(/obj/effect/temp_visual/blessing/qoh,/obj/effect/temp_visual/blessing/kod,
-			/obj/effect/temp_visual/blessing/kog,/obj/effect/temp_visual/blessing/sow)
-		new thing_to_place(pick(arena_turfs))
-
-	/*
-	* Changing this from a left to right wave
-	* to a top to bottom requires some math.
-	* farthest_y would need to have + wave_area_halfwidth
-	* instead of farthest_x.
-	* start_turf is the top right while end_turf is
-	* bottom left. So move the math alterations from
-	* farthest_y to farthest_x with start being +
-	* and end being -.
-	* Then finally make it
-	* farthest_y = farthest_y - 1. -IP
-	*/
-	var/farthest_x = caster_x - wave_area_halfwidth
-	var/farthest_y = caster_y
-	var/loop_amt = (wave_area_halfwidth * 2) + 1
-	for(var/loop = 1 to loop_amt)
-		var/turf/start_turf = locate(farthest_x,farthest_y + wave_area_halfheight,caster_z)
-		var/turf/end_turf = locate(farthest_x,farthest_y - wave_area_halfheight,caster_z)
-		TelegraphBeam(caster, start_turf, end_turf)
-		farthest_x = farthest_x + 1
-		if(!do_after(caster, wave_delay, target = caster))
+	var/turf/T = get_turf(caster)
+	if(T.density)
+		return
+	var/loops = 0
+	for(var/mob/living/L in  ohearers(9, caster))
+		loops++
+		if(loops > 4)
 			break
-
-
-/obj/effect/proc_holder/ability/nix/proc/TelegraphBeam(mob/living/caster, turf/top, turf/bottom)
-	var/list/pure_turfs = block(bottom,top)
-	//purely visual warning
-	//I found this proc while just skimming the online refrence. -IP
-	missile(icon('icons/obj/projectiles.dmi', "nihil_heart"),top,bottom)
-	for(var/turf/T in pure_turfs)
-		if(isopenturf(T))
-			FlickOnAtom(T,'icons/effects/cult_effects.dmi',"floorglow_looping",1 SECONDS)
+		if(IsSameFaction(caster, L) || L.stat == DEAD)
 			continue
-		pure_turfs -= T
+		var/obj/effect/ambient_danger/explosive/E = new(T, move_on_init = FALSE)
+		E.StartMovement(L)
 
-	if(!do_after(caster, wave_speed, target = caster))
+/*----------\
+|Void Danger|
+\----------*/
+/obj/effect/ambient_danger/explosive
+	name = "explosive presence"
+	icon = 'icons/obj/projectiles.dmi'
+	icon_state = "qoh1"
+	color = "BLACK"
+	steps = 40
+	speed = 5
+	damage = 30
+	damage_type = BLACK_DAMAGE
+	var/explode_fuse = 5 SECONDS
+	var/obj/effect/grow_octagon/growth
+
+/obj/effect/ambient_danger/explosive/Destroy()
+	if(growth)
+		vis_contents -= growth
+		QDEL_NULL(growth)
+	return ..()
+
+/obj/effect/ambient_danger/explosive/StartMovement(mob/living/L)
+	growth = new(src, explode_fuse)
+	vis_contents += growth
+	var/mutable_appearance/visual_overlay = mutable_appearance('ModularLobotomy/_Lobotomyicons/lc13_effects64x64.dmi', "octagon")
+	visual_overlay.pixel_x = -16
+	visual_overlay.pixel_y = -16
+	add_overlay(visual_overlay)
+
+	walk_towards(src, L, speed,speed)
+	addtimer(CALLBACK(src, PROC_REF(Explode)), explode_fuse, TIMER_STOPPABLE)
+
+/obj/effect/ambient_danger/explosive/Suffer()
+	return
+
+/obj/effect/ambient_danger/explosive/proc/Explode()
+	if(QDELETED(src))
 		return
+	visible_message(span_danger("[src] suddenly explodes!"))
+	new /obj/effect/temp_visual/explosion(get_turf(src))
+	playsound(loc, 'sound/effects/ordeals/steel/gcorp_boom.ogg', 60, TRUE)
+	for(var/mob/living/L in ohearers(1, src))
+		L.deal_damage(damage, damage_type, src, attack_type = (ATTACK_TYPE_SPECIAL))
+	qdel(src)
 
-	new /datum/beam(top.Beam(bottom, "qoh", time = 3))
-	for(var/turf/damage_loc in pure_turfs)
-		for(var/mob/living/L in damage_loc)
-			if(IsPartOfCreature(caster, L))
-				continue
-			DamageThing(L, 60, BLACK_DAMAGE, caster, thing_flags = (DAMAGE_FORCED), thing_attack_type = (ATTACK_TYPE_SPECIAL))
+//Additional mechanical thing
+/obj/effect/grow_octagon
+	icon = 'ModularLobotomy/_Lobotomyicons/lc13_effects64x64.dmi'
+	icon_state = "octagon"
+	pixel_x = -16
+	base_pixel_x = -16
+	pixel_y = -16
+	base_pixel_y = -16
 
-//Think about moving this up from subtype to root -IP
-/obj/effect/proc_holder/ability/nix/proc/IsPartOfCreature(creature, part)
-	if(part == creature)
-		return TRUE
-	if(istype(part, /mob/living/simple_animal/projectile_blocker_dummy))
-		var/mob/living/simple_animal/projectile_blocker_dummy/pbd = part
-		if(pbd.parent == creature)
-			return TRUE
-
-/*---------------\
-|Blessing of Hope|
-\---------------*/
-/obj/effect/temp_visual/blessing
-	name = "blessing of love"
-	icon = 'icons/obj/projectiles.dmi'
-	icon_state = "nihil_heart"
-	duration = 10 SECONDS
-	var/nice_text = ""
-	var/girl_type = /mob/living/simple_animal/hostile/abnormality/hatred_queen
-
-/obj/effect/temp_visual/blessing/Crossed(atom/movable/AM)
+/obj/effect/grow_octagon/Initialize(mapload, timer = 20)
 	. = ..()
-	if(isliving(AM))
-		ApplyEffect(AM)
-		qdel(src)
-
-//Overridable Proc
-/obj/effect/temp_visual/blessing/proc/ApplyEffect(mob/living/L)
-	var/obj/effect/temp_visual/decoy/fading/halfsecond/H = new(get_turf(src), girl_type)
-	H.dir = 2
-	to_chat(L, span_nicegreen("[nice_text]"))
-
-/obj/effect/temp_visual/blessing/qoh
-	color = "RED"
-	nice_text = "Your wounds start closing as you feel determined to save the world."
-
-/obj/effect/temp_visual/blessing/qoh/ApplyEffect(mob/living/L)
-	L.apply_status_effect(/datum/status_effect/magical_blessing)
-	return ..()
-
-/obj/effect/temp_visual/blessing/kod
-	name = "blessing of justice"
-	icon = 'icons/obj/projectiles.dmi'
-	icon_state = "nihil_spade"
-	color = "blue"
-	nice_text = "It feels like someone is softening the attacks against you."
-	girl_type = /mob/living/simple_animal/hostile/abnormality/despair_knight
-
-/obj/effect/temp_visual/blessing/kod/ApplyEffect(mob/living/L)
-	L.apply_lc_protection(10)
-	return ..()
-
-/obj/effect/temp_visual/blessing/kog
-	name = "blessing of happiness"
-	icon = 'icons/obj/projectiles.dmi'
-	icon_state = "nihil_diamond"
-	color = "gold"
-	nice_text = "Your attacks feel energized and you cant help but crack a smile."
-	girl_type = /mob/living/simple_animal/hostile/abnormality/greed_king
-
-/obj/effect/temp_visual/blessing/kog/ApplyEffect(mob/living/L)
-	L.apply_lc_offense_level_up(10)
-	return ..()
-
-/obj/effect/temp_visual/blessing/sow
-	name = "blessing of courage"
-	icon = 'icons/obj/projectiles.dmi'
-	icon_state = "nihil_club"
-	color = "green"
-	nice_text = "You feel brave enough to make more risky hits."
-	girl_type = /mob/living/simple_animal/hostile/abnormality/wrath_servant
-
-/obj/effect/temp_visual/blessing/sow/ApplyEffect(mob/living/L)
-	L.apply_lc_poise(10)
-	return ..()
-
-/*-------------\
-|Status Effects|
-\-------------*/
-	//QOH
-/datum/status_effect/magical_blessing
-	id = "magical_blessing"
-	status_type = STATUS_EFFECT_UNIQUE
-	duration = 1 MINUTES
-	tick_interval = 10
-	alert_type = null
-	on_remove_on_mob_delete = TRUE
-
-/datum/status_effect/magical_blessing/on_apply()
-	ADD_TRAIT(owner, TRAIT_IGNOREDAMAGESLOWDOWN, id)
-	return TRUE
-
-/datum/status_effect/magical_blessing/tick()
-	. = ..()
-	if(!ishuman(owner))
-		QDEL_IN(src, 5)
-		return
-	var/mob/living/carbon/human/status_holder = owner
-	TickEffect()
-	if(status_holder.stat == DEAD)
-		qdel(src)
-
-/datum/status_effect/magical_blessing/on_remove()
-	REMOVE_TRAIT(owner, TRAIT_IGNOREDAMAGESLOWDOWN, id)
-
-/datum/status_effect/magical_blessing/proc/TickEffect()
-	var/mob/living/carbon/human/status_holder = owner
-	status_holder.adjustSanityLoss(-10)
-	status_holder.adjustBruteLoss(-10)
+	transform = matrix()*0.1
+	animate(src, transform = matrix() * 1, color = "#FF0000", time = timer)
 
 /*-------\
 |Relocate|
@@ -665,7 +563,7 @@
 	animate(user, pixel_z = 0, alpha = 255, time = 10)
 	sleep(10)
 	var/obj/effect/temp_visual/decoy/D = new(target_turf, user)
-	animate(D, alpha = 0, transform = matrix()*2, time = 5)
+	animate(D, alpha = 0, transform = turn(matrix()*2, 180), time = 5)
 	user.density = TRUE
 
 	//Cleaner Code Toss meatbags aside
