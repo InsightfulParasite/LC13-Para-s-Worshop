@@ -113,6 +113,8 @@ GLOBAL_LIST_EMPTY(marked_players)
 	var/smart_pathing = FALSE
 	var/walk_timer = null
 	var/list/walk_path = list()
+	//Flow field map
+	var/list/world_map = list()
 	//Possibly a terrible attempt at sorting
 	var/alist/walk_variables = list(
 		//Very generous
@@ -295,6 +297,7 @@ GLOBAL_LIST_EMPTY(marked_players)
 			if(AIShouldSleep(possible_targets))	// we try to acquire a new one
 				target_memory.Cut()
 				toggle_ai(AI_IDLE)			// otherwise we go idle
+
 	return TRUE
 
 /mob/living/simple_animal/hostile/handle_automated_movement()
@@ -309,6 +312,9 @@ GLOBAL_LIST_EMPTY(marked_players)
 				addtimer(cb, (i - 1)*sidestep_delay)
 		else //Otherwise randomize it to make the players guessing.
 			addtimer(cb,rand(1,SSnpcpool.wait))
+
+	if(wander)
+		WalkWithMap()
 
 /mob/living/simple_animal/hostile/attacked_by(obj/item/I, mob/living/user)
 	if(stat == CONSCIOUS && AIStatus != AI_OFF && !client && user)
@@ -1487,10 +1493,10 @@ GLOBAL_LIST_EMPTY(marked_players)
 		patrol_reset()
 	return TRUE
 
-//Experimental Pathfinding
-#define PYTHAGOREAN(A,B,C,D) sqrt(((A-B)**2)+((C-D)**2))
 
-//Summoning the Path
+/*-----------------------\
+|Experimental Pathfinding|
+\-----------------------*/
 /mob/living/simple_animal/hostile/proc/PathStep(atom/trg)
 	var/turf/trg_turf = get_turf(trg)
 	if(!trg || !trg_turf || walk_variables["thinking"])
@@ -1503,7 +1509,7 @@ GLOBAL_LIST_EMPTY(marked_players)
 	var/trg_tag = "[trg.x],[trg.y]"
 	var/walk_path_dir = null
 	//If our tag is in the map and our targets tag is in the map just reuse.
-	if(our_tag in walk_path && trg_tag in walk_path && walk_variables["redraw"] < 2)
+	if((our_tag in walk_path) && (trg_tag in walk_path) && walk_variables["redraw"] < 2)
 		walk_path_dir = walk_path[trg_tag]
 
 	//If our target isnt stationary just keep the map.
@@ -1537,6 +1543,9 @@ GLOBAL_LIST_EMPTY(marked_players)
 	var/min_check = max(1, minimum_distance)
 	if(min_dist_check <= min_check)
 		return
+	if(!timer_called)
+		//Stop automated walking
+		walk(src,0)
 	//Give me our xy tag.
 	var/our_tag = "[x],[y]"
 	var/turf/steppers = get_step(src, walk_path[our_tag])
@@ -1725,7 +1734,7 @@ GLOBAL_LIST_EMPTY(marked_players)
 		if(total_extra > 50 || total_check >= 15)
 			break
 		if(S.density)
-			if(S.resistance_flags & INDESTRUCTIBLE)
+			if(S.resistance_flags & INDESTRUCTIBLE || istype(S, /obj/structure/railing))
 				return 10000
 			. += 10
 			total_extra += 10
@@ -1782,7 +1791,23 @@ GLOBAL_LIST_EMPTY(marked_players)
 		return_list += block(fx -1,fy -1,fz,fx +1,fy +1,fz) - focus_turf
 	return return_list
 
-#undef PYTHAGOREAN
+/mob/living/simple_animal/hostile/proc/WalkWithMap()
+	if(stat == DEAD || !can_act) // Dead
+		return FALSE
+
+	if(!target)
+		if(length(world_map))
+			if(world_map)
+				var/our_coords = "[x],[y]"
+				if(our_coords in world_map)
+					walk_path = world_map.Copy()
+					WalkPing()
+					return
+
+/mob/living/simple_animal/hostile/proc/GrabFlowMap(label)
+	if(!(SSflowfield.FindMap(label)))
+		return
+	world_map = SSflowfield.CopyMap(label)
 
 //---------------------------------------------------
 

@@ -29,10 +29,11 @@ SUBSYSTEM_DEF(flowfield)
 //These procs are called remotely from atoms.
 
 /datum/controller/subsystem/flowfield/proc/MakeMyMap(atom/source, label)
-	currently_scanning_labels += label
 	if(!label || (label in currently_scanning_labels))
 		currently_scanning_labels -= label
 		return
+
+	currently_scanning_labels += label
 
 	var/turf/thing_location = get_turf(source)
 	if(!thing_location)

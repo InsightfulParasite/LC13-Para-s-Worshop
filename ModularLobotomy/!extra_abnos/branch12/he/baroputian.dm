@@ -1,4 +1,4 @@
-#define PYTHAGOREAN(A,B,C,D) sqrt(((A-B)**2)+((C-D)**2))
+
 #define LILI_BEHAVIOR_MODE_STEAL 1
 #define LILI_BEHAVIOR_MODE_RETURN 2
 #define LILI_BEHAVIOR_MODE_ATTACK 3
@@ -172,7 +172,7 @@
 	for(var/L in followers)
 		if(istype(L, /mob/living/simple_animal/hostile/baroputian))
 			var/mob/living/simple_animal/hostile/baroputian/I = L
-			I.GrabHomeMap(our_identifier)
+			I.GrabFlowMap(our_identifier)
 
 /mob/living/simple_animal/hostile/abnormality/branch12/baromez/proc/EnrageAll(mob/living/offender)
 	for(var/L in followers)
@@ -192,7 +192,7 @@
 		var/mob/living/simple_animal/hostile/baroputian/entity = L
 		entity.home = tag
 		entity.faction = faction.Copy()
-		entity.GrabHomeMap(AddIdentifier(get_turf(src)))
+		entity.GrabFlowMap(AddIdentifier(get_turf(src)))
 		followers += L
 
 /mob/living/simple_animal/hostile/abnormality/branch12/baromez/proc/UnregisterMob(mob/living/L)
@@ -243,31 +243,7 @@
 	//Uses tags
 	var/home
 
-	//Experimental Pathfinding
-	var/smart_pathing = TRUE
-	var/walk_timer = null
-	var/list/walk_path = list()
-	//Flow field map to their bag
-	var/list/world_map = list()
-	//Possibly a terrible attempt at sorting
-	var/alist/walk_variables = alist(
-		//Very generous
-		"attempts" = 50,
-		"thinking" = FALSE,
-		//If we redraw a map when we reach our dest
-		"remap_on_dest" = TRUE,
-		//Countdown for how many times we keep our map.
-		"redraw" = 0,
-		//Travels strictly in adjacent tiles
-		"no_diagonals" = FALSE,
-		//checks closed turfs afterwards to avoid them
-		"careful" = TRUE,
-		/*
-		* To prevent the path_step from jolting forward
-		* this value tracks the last time we took a step.
-		*/
-		"walk_cooldown" = 0,
-		)
+
 
 /*-----\
 |Vitals|
@@ -277,16 +253,7 @@
 	. = ..()
 	AddComponent(/datum/component/swarming)
 
-/mob/living/simple_animal/hostile/baroputian/Move(atom/newloc, direct, glide_size_override)
-	. = ..()
-	if(!.)
-		return
-	walk_variables["walk_cooldown"] = world.time + move_to_delay
-
 /mob/living/simple_animal/hostile/baroputian/Destroy()
-	if(TIMER_COOLDOWN_CHECK(src,walk_timer))
-		deltimer(walk_timer)
-
 	if(held_item)
 		DropItem()
 	return ..()
@@ -302,6 +269,9 @@
 		else
 			behavior_mode = LILI_BEHAVIOR_MODE_STEAL
 
+/mob/living/simple_animal/hostile/baroputian/WalkWithMap()
+	if(stat == DEAD || !can_act) // Dead
+		return FALSE
 	if(!target)
 		if(length(world_map) && (held_item || isliving(pulling) || behavior_mode == LILI_BEHAVIOR_MODE_RETURN))
 			if(world_map)
@@ -469,334 +439,6 @@
 		if(bag.tag == home)
 			return TRUE
 
-/mob/living/simple_animal/hostile/baroputian/proc/GrabHomeMap(label)
-	if(!(SSflowfield.FindMap(label)))
-		return
-	world_map = SSflowfield.CopyMap(label)
-
-/*---------------------------\
-|Experimental Map Pathfinding|
-\---------------------------*/
-//Who needs hard refrences when i got numbers. -IP
-/mob/living/simple_animal/hostile/baroputian/Goto(target, delay, minimum_distance)
-	if(!can_act)
-		return
-	if(target == src.target)
-		approaching_target = TRUE
-	else
-		approaching_target = FALSE
-
-	if(smart_pathing)
-		var/dist = get_dist(src,target)
-		var/min_distance = max(1, minimum_distance)
-		if(dist > min_distance && dist < 10 && target)
-			if(PathStep(target))
-				walk(src,0)
-				return
-
-	deltimer(walk_timer)
-	walk_timer = null
-	return ..()
-
-//Summoning the Path
-/mob/living/simple_animal/hostile/baroputian/proc/PathStep(atom/trg)
-	var/turf/trg_turf = get_turf(trg)
-	if(!trg || !trg_turf || walk_variables["thinking"])
-		return
-	var/turf/our_turf = get_turf(src)
-	var/good_path = FALSE
-	//true false seems to not play well with alists
-	walk_variables["thinking"] = TRUE
-	var/our_tag = "[x],[y]"
-	var/trg_tag = "[trg.x],[trg.y]"
-	var/walk_path_dir = null
-	//If our tag is in the map and our targets tag is in the map just reuse.
-	if((our_tag in walk_path) && (trg_tag in walk_path) && walk_variables["redraw"] < 2)
-		walk_path_dir = walk_path[trg_tag]
-
-	//If our target isnt stationary just keep the map.
-	if(walk_path_dir != "dest")
-		if(FormPath(trg_turf,our_turf))
-			good_path = TRUE
-
-	//To prevent us using the same map forever we will redraw after 2 attempts
-	walk_variables["redraw"] += 1
-
-	walk_variables["thinking"] = FALSE
-	if(length(walk_path) && good_path)
-		WalkPing(0)
-		walk_variables["redraw"] = 0
-		return TRUE
-	//reset redraw counter
-
-//The actual movement that is called over and over.
-/mob/living/simple_animal/hostile/baroputian/proc/WalkPing(timer_called = 0)
-	if(QDELETED(src))
-		return
-	if(stat == DEAD)
-		walk(src,0)
-		return
-	if(client || !can_act)
-		return
-	if(!isturf(loc))
-		return
-	//If next to target do not move into them.
-	var/min_dist_check = get_dist(target,src)
-	var/min_check = max(1, minimum_distance)
-	if(min_dist_check <= min_check)
-		return
-	if(!timer_called)
-		//Stop automated walking
-		walk(src,0)
-	//Give me our xy tag.
-	var/our_tag = "[x],[y]"
-	var/turf/steppers = get_step(src, walk_path[our_tag])
-	var/timer_cooldown = max(1, move_to_delay)
-	if(our_tag in walk_path)
-		var/walk_tag = walk_path[our_tag]
-		deltimer(walk_timer)
-		walk_timer = null
-
-		if(walk_tag == "dest")
-			//causes "jolts" of movement
-			if(target && walk_variables["remap_on_dest"])
-				Goto(target, move_to_delay)
-			return
-		//No double stepping
-		if(walk_variables["walk_cooldown"] <= world.time)
-			Move(steppers, walk_path[our_tag])
-		if(timer_called < 20)
-			walk_timer = addtimer(CALLBACK(src, PROC_REF(WalkPing), timer_called + 1), timer_cooldown, TIMER_STOPPABLE)
-
-/mob/living/simple_animal/hostile/baroputian/proc/FormPath(turf/start,turf/end)
-	walk_path = list()
-	var/max_cycles = walk_variables["attempts"] + move_to_delay
-	var/turf/focus_turf = start
-	var/list/openf = list()
-	var/list/dir_list = list()
-	var/list/closed_turfs = list()
-	for(var/cycle = 1 to max_cycles)
-		if(!focus_turf)
-			//If no focus_turf then something has gone terribly wrong.
-			stack_trace("FormPath:focus_turfmissing:cycle[cycle]:[type]")
-			return
-		if(get_dist(focus_turf, start) > 20)
-			break
-		var/list/temp_list = ReturnAdjacentTurfs(focus_turf, walk_variables["no_diagonals"])
-		var/list/total_list = openf + closed_turfs
-		for(var/turf/T in temp_list)
-			var/new_dir = get_dir(T,focus_turf)
-			//Replace dir if new check is made.
-			if(T in dir_list)
-				//Skip steps that are already paths.
-			//	if(T in closed_turfs && T != start)
-			//		continue
-				var/tval = total_list[T]
-				var/nval
-				//If its pointing at something that is cheaper than it then steal its val
-				var/turf/pointing_at = get_step(T, dir_list[T])
-				//Dont bother if its just a wall
-				if(tval >= 1000)
-					if(walk_variables["careful"])
-						var/list/double_check_turfs = ReturnAdjacentTurfs(T, TRUE)
-						for(var/turf/check in double_check_turfs)
-							if(!(check in dir_list))
-								continue
-							var/flattened_dir = FlattenDiagonal(dir_list[check], get_dir(check,T))
-							if(flattened_dir)
-								dir_list[check] = flattened_dir
-					continue
-				//If in total_list with a openf value and is diagonal
-				if(pointing_at in total_list && pointing_at.y != T.y && pointing_at.x != T.x)
-					nval = total_list[pointing_at]
-				if(nval && nval < tval)
-					dir_list[T] = new_dir
-					openf[T] = nval
-
-			else
-				dir_list += T
-				dir_list[T] = new_dir
-				//Add turf to openf
-				if(!(T in openf))
-					openf += T
-				//Appraise turf
-				openf[T] = AppraiseTurf(T,start,end)
-				if(openf[T] >= 1000)
-					closed_turfs += focus_turf
-					closed_turfs[focus_turf] = 1000
-
-		//Add checked focus_turfs to closed_turfs list.
-		closed_turfs += focus_turf
-		if(focus_turf in openf)
-			closed_turfs[focus_turf] = openf[focus_turf]
-		closed_turfs[focus_turf] = 0
-
-		//If focus_turf is the end dont worry about checking more.
-		if(focus_turf == end)
-			break
-
-		//If we have openf turfs to choose from then pick one of those to check.
-		if(length(openf))
-			var/good_options = openf - closed_turfs
-			focus_turf = ReturnLowestValue(good_options)
-			//Look i dont care whats behind that wall your not pathing through it. Unless.
-			if(good_options[focus_turf] >= 1000)
-				break
-
-	var/tag_turf = "[x],[y]"
-	var/list/replace_walk_path = FormatDirections(dir_list, start,focus_turf)
-	//We are not in the list how can we possibly use this map?
-	if(!(tag_turf in replace_walk_path))
-		return FALSE
-	walk_path = replace_walk_path.Copy()
-	return TRUE
-
-/mob/living/simple_animal/hostile/baroputian/proc/FormatDirections(list/dir_list = list(), turf/start, turf/end)
-	. = list()
-	if(!length(dir_list))
-		stack_trace("FormatDirections:NoDirList:[type]")
-		return
-
-	if(!start || !end)
-		stack_trace("FormatDirections:nostartorend:[type]")
-		return
-
-	var/list/return_list = list()
-	for(var/turf/floor in dir_list)
-		var/tag_turf = "[floor.x],[floor.y]"
-		return_list += tag_turf
-		return_list[tag_turf] = dir_list[floor]
-		if(floor == start)
-			return_list[tag_turf] = "dest"
-
-	return return_list
-
-/mob/living/simple_animal/hostile/baroputian/proc/AppraiseTurf(turf/T, turf/start, turf/end)
-	. = 0
-	if(T == end)
-		return -1
-	if(T.density || !istype(T, /turf/open))
-		return 10000
-	//Hcost
-	var/h_cost = CountDist(T,end)
-	//Gcost
-	var/g_cost = CountDist(T,start)
-
-	. += (h_cost + g_cost)
-
-
-	//If not open turf its likely a wall.
-	var/turf/open/O = T
-	if(istype(O, /turf/open/water/deep))
-		var/turf/open/water/deep/watar = O
-		if(!watar.safe)
-			return 10000
-	if(O.slowdown)
-		. += O.slowdown
-
-	//Do not go on forever, stop when we reach critical mass.
-	var/total_extra = 0
-	/*
-	* Lets just get silly with it, a total of 20 items can be checked
-	* If one item cycle returns early then we can use the extra charges
-	* on the next.
-	*/
-	var/total_check = 0
-
-	for(var/obj/structure/S in O)
-		total_check++
-		if(total_extra > 50 || total_check >= 15)
-			break
-		if(S.density)
-			if(S.resistance_flags & INDESTRUCTIBLE || istype(S, /obj/structure/railing))
-				return 10000
-			. += 10
-			total_extra += 10
-			break
-
-	for(var/obj/machinery/M in O)
-		total_check++
-		if(total_extra > 50 || total_check >= 20)
-			break
-		if(M.density)
-			if(!istype(M,/obj/machinery/door))
-				if(M.resistance_flags & INDESTRUCTIBLE)
-					return 10000
-				. += 20
-				total_extra += 20
-				break
-			//Mostly because im sick of them ignoring doors.
-			. -= 10
-			total_extra -= 10
-
-	for(var/obj/effect/turf_fire/F in O)
-		total_check++
-		if(total_extra > 50 || total_check >= 5)
-			break
-		if(QDELETED(F))
-			continue
-		var/fire_resist = 1
-		if(FIRE in damage_coeff)
-			fire_resist = damage_coeff[FIRE]
-		. += 100 * fire_resist
-		break
-
-	if(total_extra > 50)
-		return
-
-	for(var/mob/living/L in O)
-		total_check++
-		if(total_check >= 10)
-			break
-		if(L.density)
-			. += 10
-			break
-
-/*-----------------------\
-|Shared Pathfinding Procs|
-\-----------------------*/
-/mob/living/simple_animal/proc/ReturnAdjacentTurfs(turf/focus_turf, strict_adjacent = FALSE)
-	var/list/return_list = list()
-	//Just give me adjacent turfs
-	var/fx = focus_turf.x
-	var/fy = focus_turf.y
-	var/fz = focus_turf.z
-	if(strict_adjacent)
-		return_list += block(fx - 1,fy,fz,fx + 1,fy,fz) - focus_turf
-		return_list += block(fx,fy -1 ,fz,fx,fy + 1,fz) - focus_turf
-	else
-		return_list += block(fx -1,fy -1,fz,fx +1,fy +1,fz) - focus_turf
-	return return_list
-
-/mob/living/simple_animal/proc/CountDist(turf/T, turf/dest)
-	if(!T || !dest)
-		return 0
-	return PYTHAGOREAN(T.x,dest.x,T.y,dest.y) * 10
-
-//For dangerous turfs. If a dangerous turf is north of a arrow pointing northeast it will change it to east.
-/mob/living/simple_animal/proc/FlattenDiagonal(direct, remove_dir)
-	if(direct == NORTHWEST)
-		if(remove_dir == NORTH)
-			return WEST
-		if(remove_dir == WEST)
-			return NORTH
-	if(direct == NORTHEAST)
-		if(remove_dir == NORTH)
-			return EAST
-		if(remove_dir == EAST)
-			return NORTH
-	if(direct == SOUTHEAST)
-		if(remove_dir == SOUTH)
-			return EAST
-		if(remove_dir == EAST)
-			return SOUTH
-	if(direct == SOUTHWEST)
-		if(remove_dir == SOUTH)
-			return WEST
-		if(remove_dir == WEST)
-			return SOUTH
-
-#undef PYTHAGOREAN
 #undef LILI_BEHAVIOR_MODE_STEAL
 #undef LILI_BEHAVIOR_MODE_RETURN
 #undef LILI_BEHAVIOR_MODE_ATTACK
