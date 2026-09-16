@@ -20,10 +20,11 @@ SUBSYSTEM_DEF(flowfield)
 
 /datum/controller/subsystem/flowfield/Initialize()
 	attempts = world.maxz * world.maxy
-	return ..()
+	. = ..()
+	addtimer(CALLBACK(src, PROC_REF(CollectLandmarks)), 1 SECONDS)
 
 /datum/controller/subsystem/flowfield/stat_entry(msg)
-	msg = "MAPS:[length(maps)]"
+	msg = "|MAPS:[length(maps)]"
 	return ..()
 
 //These procs are called remotely from atoms.
@@ -55,6 +56,11 @@ SUBSYSTEM_DEF(flowfield)
 	var/list/return_map = maps[label]
 	return return_map.Copy()
 
+/datum/controller/subsystem/flowfield/proc/CollectLandmarks()
+	var/list/landmarks = GLOB.department_centers
+	for(var/turf/T in landmarks)
+		MakeMyMap(T, AddIdentifier(T))
+
 /*
 * The purpose of this system is to create a map when called by an object.
 * This map will consist of text xyz coords keys with directional elements.
@@ -71,7 +77,7 @@ SUBSYSTEM_DEF(flowfield)
 	for(var/cycle = 1 to attempts)
 		//This is to give a slight delay and ease the burdon of processing
 		if(!(cycle % 15))
-			sleep(5)
+			sleep(1)
 
 		if(!focus_turf)
 			//If no focus_turf then something has gone terribly wrong.

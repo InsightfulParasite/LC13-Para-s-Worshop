@@ -1808,6 +1808,7 @@ GLOBAL_LIST_EMPTY(marked_players)
 	if(!(SSflowfield.FindMap(label)))
 		return
 	world_map = SSflowfield.CopyMap(label)
+	return TRUE
 
 //---------------------------------------------------
 
