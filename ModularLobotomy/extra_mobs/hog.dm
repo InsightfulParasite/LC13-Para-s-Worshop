@@ -175,7 +175,7 @@
 		var/mob/living/L = attacked_target
 		if(L.stat == DEAD && L.health <= (-L.maxHealth/2))
 			adjust_nutrition(30)
-			L.gib(TRUE, TRUE, TRUE)
+			L.gib(FALSE, FALSE, TRUE)
 			LoseAggro()
 			return
 	if(istype(attacked_target, /obj/structure/flora/ash/garden))
