@@ -4155,6 +4155,7 @@
 #include "ModularLobotomy\_abno_abilities.dm"
 #include "ModularLobotomy\abnoconsole_upgrades.dm"
 #include "ModularLobotomy\chair_override.dm"
+#include "ModularLobotomy\city_imports.dm"
 #include "ModularLobotomy\danteh_head.dm"
 #include "ModularLobotomy\debug_items.dm"
 #include "ModularLobotomy\delivery_doors.dm"
