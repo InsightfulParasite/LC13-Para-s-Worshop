@@ -138,7 +138,7 @@
 		else
 			if(max_hunger > -1)
 				var/regen_amt = 1
-				if("Regenerative" in genes)
+				if("Regenerative" in traits)
 					regen_amt = 3
 				adjustHealth(regen_amt)
 
@@ -192,7 +192,7 @@
 		offspring_tags += L.tag
 		if(istype(L, /mob/living/simple_animal/hostile/hog))
 			var/mob/living/simple_animal/hostile/hog/H
-			H.InheritTraits(genes, potential_traits, mutation_chance)
+			H.InheritTraits(traits, potential_traits, mutation_chance)
 
 /*---------\
 |Targetting|
@@ -240,21 +240,21 @@
 /*-----------\
 |Unique Procs|
 \-----------*/
-/mob/living/simple_animal/hostile/hog/proc/InheritTraits(list/new_genes,list/potential,mut_chance = 0)
-	genes = new_genes.Copy()
+/mob/living/simple_animal/hostile/hog/proc/InheritTraits(list/new_traits,list/potential,mut_chance = 0)
+	traits = new_traits.Copy()
 	potential_traits = potential.Copy()
 	if(prob(mut_chance))
 		for(var/i in potential_traits)
 			potential_traits[i] += prob(50) ? 1 : -1
-			if(i in genes)
+			if(i in traits)
 				if(prob(5))
-					genes -= i
+					traits -= i
 				continue
 			var/apply_chance = potential_traits[i]
 			if(prob(apply_chance))
-				genes += i
+				traits += i
 
-	if("Strong" in genes)
+	if("Strong" in traits)
 		melee_damage_lower += 2
 
 /mob/living/simple_animal/hostile/hog/proc/growUp()
@@ -275,7 +275,7 @@
 	visible_message(span_notice("[src] grows up into [L]."))
 	if(istype(L, /mob/living/simple_animal/hostile/hog))
 		var/mob/living/simple_animal/hostile/hog/H = L
-		H.InheritTraits(genes,potential_traits)
+		H.InheritTraits(traits,potential_traits)
 	qdel(src)
 
 /*---\
